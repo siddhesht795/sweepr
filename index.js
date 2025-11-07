@@ -6,10 +6,7 @@ import inquirer from 'inquirer';
 import fs from 'fs/promises';
 import path from 'path';
 
-// --- NEW ---
-// A whitelist of file extensions that count as "code".
-// We will ONLY check the 'mtime' of files matching this list.
-// Using a Set provides a very fast lookup (O(1)).
+// --- (Constants: CODE_EXTENSIONS and IGNORE_DIRS) ---
 const CODE_EXTENSIONS = new Set([
   // JavaScript
   '.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx',
@@ -24,8 +21,6 @@ const CODE_EXTENSIONS = new Set([
   // Data/Markup
   '.xml', '.yml', '.yaml'
 ]);
-
-// Directories to ignore entirely
 const IGNORE_DIRS = new Set([
   'node_modules',
   '.git',
@@ -36,6 +31,56 @@ const IGNORE_DIRS = new Set([
   'public',
   'vendor'
 ]);
+
+// --- HELPER FUNCTIONS ---
+
+/**
+ * Formats bytes into a human-readable string (KB, MB, GB, etc.)
+ */
+function formatBytes(bytes, decimals = 2) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+/**
+ * Recursively calculates the total size of a directory.
+ */
+async function getDirectorySize(dir) {
+  let entries;
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch (err) {
+    // If we can't read a dir (e.g., permissions), assume 0 size
+    return 0;
+  }
+
+  // Use Promise.all to calculate sizes of all entries in parallel
+  const sizePromises = entries.map(async (entry) => {
+    const fullPath = path.join(dir, entry.name);
+    try {
+      if (entry.isDirectory()) {
+        // Recurse into subdirectories
+        return await getDirectorySize(fullPath);
+      } else if (entry.isFile()) {
+        // Get file stats
+        const stats = await fs.stat(fullPath);
+        return stats.size;
+      }
+    } catch (err) {
+      // Skip broken symlinks or permission-denied files
+      return 0;
+    }
+    return 0;
+  });
+
+  // Wait for all calculations and sum them up
+  const sizes = await Promise.all(sizePromises);
+  return sizes.reduce((acc, size) => acc + size, 0);
+}
 
 /**
  * Recursively scans a project to find the newest 'mtime'
@@ -91,7 +136,6 @@ async function getProjectLastActivity(dir) {
   return latestMtime;
 }
 
-
 /**
  * Recursively finds target directories (like node_modules).
  */
@@ -137,9 +181,6 @@ async function findTargetDirectories(dir) {
   return results;
 }
 
-// ... (The 'main' function is exactly the same as before) ...
-// ... (It doesn't need to change, as it just uses the 'mtime' ...
-// ...  that our smart function provides) ...
 
 /**
  * Main function to run the CLI tool.
@@ -153,6 +194,7 @@ async function main() {
     .option('-p, --path <directory>', 'The root directory to start scanning from', process.cwd())
     .option('--dry-run', 'List folders to be deleted without actually deleting them')
     .option('-y, --yes', 'Skip the confirmation prompt (DANGEROUS)')
+    .option('-i, --interactive', 'Interactively ask for each folder to be deleted') // NEW OPTION
     .parse(process.argv);
 
   // 2. Store options
@@ -164,8 +206,9 @@ async function main() {
   const thresholdDate = new Date();
   thresholdDate.setDate(thresholdDate.getDate() - days);
 
-  console.log(chalk.cyan(`Scanning for projects in: ${scanPath}`));
-  console.log(chalk.cyan(`Finding projects inactive for ${days} days (last code change before ${thresholdDate.toLocaleDateString()})...`));
+  // --- STYLING UPDATES ---
+  console.log(chalk.blueBright(`Scanning for projects in: ${scanPath}`));
+  console.log(chalk.blueBright(`Finding projects inactive for ${days} days (last code change before ${thresholdDate.toLocaleDateString()})...`));
   
   // 4. Find all target directories
   const allTargets = await findTargetDirectories(scanPath);
@@ -175,64 +218,133 @@ async function main() {
 
   // 6. Handle "nothing found"
   if (targets.length === 0) {
-    console.log(chalk.green('\n✨ All clean! No inactive projects found.'));
+    console.log(chalk.greenBright('\n✨ All clean! No inactive projects found.'));
     return;
   }
 
-  // 7. Display what was found
-  console.log(chalk.yellow(`\nFound ${targets.length} inactive projects containing node_modules:`));
-  targets.forEach(target => {
-    console.log(`- Project: ${chalk.bold(target.parent)}`);
-    console.log(`  (Last code change: ${target.mtime.toLocaleDateString()}) -> ${chalk.red(target.path)}`);
+  // 7. Calculate sizes and Display what was found
+  console.log(chalk.yellowBright('\nCalculating sizes... This may take a moment.'));
+
+  const targetsWithSizes = await Promise.all(
+    targets.map(async (target) => {
+      const size = await getDirectorySize(target.path);
+      return { ...target, size };
+    })
+  );
+
+  let totalSize = 0;
+  console.log(chalk.yellowBright.bold(`\nFound ${targetsWithSizes.length} inactive projects containing node_modules:`));
+  
+  targetsWithSizes.forEach(target => {
+    totalSize += target.size;
+    const formattedSize = formatBytes(target.size);
+    console.log(`- Project: ${chalk.bold.whiteBright(target.parent)}`);
+    console.log(`  (Last code change: ${target.mtime.toLocaleDateString()}) -> ${chalk.redBright.bold(target.path)} (${chalk.yellowBright(formattedSize)})`);
   });
 
   // 8. Handle Dry Run
   if (options.dryRun) {
-    console.log(chalk.blue('\n[DRY RUN] No folders will be deleted.'));
+    console.log(chalk.bgCyan.black.bold('\n[DRY RUN] No folders will be deleted.'));
+    console.log(chalk.yellowBright(`Total space that would be reclaimed: ${chalk.greenBright.bold(formatBytes(totalSize))}`));
     return;
   }
 
-  // 9. Get Confirmation
-  let confirmed = options.yes;
-  if (!confirmed) {
-    const { shouldDelete } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'shouldDelete',
-        message: `Are you sure you want to delete the node_modules from these ${targets.length} projects?`,
-        default: false,
-      },
-    ]);
-    confirmed = shouldDelete;
-  }
+  // --- MODIFIED SECTION (9, 10, 11) ---
 
-  // 10. Delete (if confirmed)
-  if (confirmed) {
-    console.log(chalk.red('\nDeleting folders...'));
-    let successCount = 0;
-    let failCount = 0;
+  let successCount = 0;
+  let failCount = 0;
+  let totalBytesDeleted = 0;
+  let operationCancelled = false; // Flag to track if user cancelled the "all" prompt
 
-    for (const target of targets) {
-      try {
-        await fs.rm(target.path, { recursive: true, force: true });
-        console.log(chalk.green(`Deleted: ${target.path}`));
-        successCount++;
-      } catch (err) {
-        console.error(chalk.red(`Failed to delete ${target.path}: ${err.message}`));
-        failCount++;
+  // 9. Get Confirmation (Interactive or All-at-Once)
+  if (options.interactive && !options.yes) {
+    // --- INTERACTIVE MODE ---
+    console.log(chalk.yellowBright.bold('\nStarting interactive deletion...'));
+
+    for (const target of targetsWithSizes) {
+      console.log(chalk.whiteBright(`\nProject: ${chalk.bold(target.parent)}`));
+      console.log(`  (Last code change: ${target.mtime.toLocaleDateString()}) -> ${chalk.redBright(target.path)} (${chalk.yellowBright(formatBytes(target.size))})`);
+      
+      const { shouldDelete } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'shouldDelete',
+          message: 'Delete this node_modules folder?',
+          default: false,
+        },
+      ]);
+
+      if (shouldDelete) {
+        try {
+          await fs.rm(target.path, { recursive: true, force: true });
+          console.log(chalk.green.dim(`Deleted: ${target.path}`));
+          successCount++;
+          totalBytesDeleted += target.size;
+        } catch (err) {
+          console.error(chalk.redBright(`Failed to delete ${target.path}: ${err.message}`));
+          failCount++;
+        }
+      } else {
+        console.log(chalk.yellowBright.dim('Skipped.'));
       }
     }
-
-    console.log(chalk.green(`\nDone. Successfully deleted ${successCount} folders.`));
-    if (failCount > 0) {
-      console.log(chalk.red(`Failed to delete ${failCount} folders.`));
-    }
+  
   } else {
-    console.log(chalk.yellow('\nOperation cancelled. No folders were deleted.'));
+    // --- "ALL OR NOTHING" MODE (DEFAULT) ---
+    console.log(chalk.yellowBright(`\nTotal space to be reclaimed: ${chalk.greenBright.bold(formatBytes(totalSize))}`));
+    
+    let confirmed = options.yes;
+    if (!confirmed) {
+      const { shouldDelete } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'shouldDelete',
+          message: chalk.yellowBright(`Are you sure you want to delete the node_modules from all ${targetsWithSizes.length} projects?`),
+          default: false,
+        },
+      ]);
+      confirmed = shouldDelete;
+    }
+
+    if (confirmed) {
+      console.log(chalk.redBright.bold('\nDeleting all folders...'));
+
+      for (const target of targetsWithSizes) {
+        try {
+          await fs.rm(target.path, { recursive: true, force: true });
+          console.log(chalk.green.dim(`Deleted: ${target.path}`));
+          successCount++;
+          totalBytesDeleted += target.size;
+        } catch (err) {
+          console.error(chalk.redBright(`Failed to delete ${target.path}: ${err.message}`));
+          failCount++;
+        }
+      }
+    } else {
+      operationCancelled = true;
+    }
+  }
+
+  // 10. Final Summary
+  if (operationCancelled) {
+    console.log(chalk.yellowBright('\nOperation cancelled. No folders were deleted.'));
+  } else {
+    // Show summary only if the operation wasn't cancelled
+    if (successCount > 0) {
+      console.log(chalk.greenBright(`\nDone. Successfully deleted ${successCount} folders and reclaimed ${chalk.bold(formatBytes(totalBytesDeleted))}.`));
+    } else if (failCount === 0) {
+      // This handles the case where --interactive was used and the user skipped everything
+      console.log(chalk.yellowBright('\nNo folders were deleted.'));
+    }
+    
+    if (failCount > 0) {
+      console.log(chalk.redBright(`Failed to delete ${failCount} folders.`));
+    }
   }
 }
 
+// --- (Main call is unchanged) ---
 main().catch(err => {
-  console.error(chalk.red(`An unexpected error occurred: ${err.message}`));
+  console.error(chalk.redBright.bold(`An unexpected error occurred: ${err.message}`));
   process.exit(1);
 });
