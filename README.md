@@ -1,10 +1,10 @@
 # 🧹 sweepr
 
-A smart CLI tool that cleans up old `node_modules` folders from projects you're not actively working on.
+A smart CLI tool that cleans up old dependencies and cache from projects you're not actively working on.
 
 ## The Problem
 
-If you're a Node.js developer, your hard drive is likely littered with `node_modules` folders. Each one can consume hundreds of megabytes (or even gigabytes!) of space.
+If you're a developer, your hard drive is likely littered with `node_modules` folders, Python `venv`s, and `__pycache__` directories. Each one can consume hundreds of megabytes (or even gigabytes!) of space.
 
 Deleting them manually is risky—what if you're still working on that project?
 
@@ -12,19 +12,19 @@ Deleting them manually is risky—what if you're still working on that project?
 
 **sweepr** solves this by intelligently scanning for **"inactive"** projects.
 
-It's smart: "inactivity" isn't just the folder's last-opened date. `sweepr` scans your project and finds the "last modified" time of your **actual code files** (like `.js`, `.ts`, `.json`).
+It's smart: "inactivity" isn't just the folder's last-opened date. `sweepr` scans your project and finds the "last modified" time of your **actual code files** (like `.js`, `.ts`, `.json`, `.py`).
 
-If you haven't changed any *code* in a project for a set amount of time (e.g., 30 days), it's considered "inactive," and its `node_modules` folder becomes a target for deletion.
+If you haven't changed any *code* in a project for a set amount of time (e.g., 30 days), it's considered "inactive," and its dependencies become targets for deletion.
 
 ## Demo
 
-Here's how it works. It finds old projects, shows you how much space you'll save, and asks for confirmation.
-
 ```bash
 $ sweepr --dry-run --days 60
+Running all cleanup operations...
+
+--- Running Node.js Cleanup ---
 Scanning for projects in: /home/siddhesh/Projects
 Finding projects inactive for 60 days (last code change before 9/8/2025)...
-
 Calculating sizes... This may take a moment.
 
 Found 2 inactive projects containing node_modules:
@@ -32,18 +32,23 @@ Found 2 inactive projects containing node_modules:
   (Last code change: 7/15/2025) -> .../old-blog/node_modules (234.5 MB)
 - Project: /home/siddhesh/Projects/archive/defunct-startup
   (Last code change: 1/2/2025) -> .../defunct-startup/node_modules (412.0 MB)
-
 [DRY RUN] No folders will be deleted.
 Total space that would be reclaimed: 646.5 MB
+
+--- Running Python Cleanup ---
+Python cleanup feature is not yet implemented. Coming soon!
+
+All cleanup operations complete.
 ````
 
 -----
 
 ## ✨ Features
 
-  - **Smart Activity Scan:** Checks code file timestamps (`.js`, `.ts`, etc.), not just `README.md` or `.env` files.
-  - **Storage Calculation:** Scans the size of each `node_modules` folder and shows you the total space you'll reclaim.
-  - **Safe by Default:** Always asks for confirmation before deleting anything.
+  - **Multi-Language Support:** Cleans up Node.js (`node_modules`) and (soon) Python (`venv`, `__pycache__`).
+  - **Smart Activity Scan:** Checks code file timestamps, not just `README.md` or `.env` files.
+  - **Storage Calculation:** Scans the size of each dependency folder and shows you the total space you'll reclaim.
+  - **Configurable Defaults:** Run `sweepr config` to set your default inactivity period and scan path.
   - **Dry Run Mode:** Includes a `--dry-run` flag to see what would be deleted, with zero risk.
   - **Interactive Mode:** Use the `-i` flag to approve or deny the deletion of *each folder* one by one.
   - **Recursive:** Scans all sub-folders to find every project, no matter how deeply nested.
@@ -54,13 +59,8 @@ Total space that would be reclaimed: 646.5 MB
 
 ### Local Development (Right Now)
 
-To use your tool on your own machine, you don't install it, you "link" it.
-
 1.  Navigate to your `sweepr` project directory.
-2.  Run this command once:
-    ```bash
-    npm link
-    ```
+2.  Run `npm link` (you only need to do this once).
 3.  You can now run the `sweepr` command from anywhere in your terminal\!
 
 ### Global Installation (After Publishing to NPM)
@@ -73,33 +73,39 @@ npm install -g sweepr
 
 ### Usage
 
-You can run the `sweepr` command from any directory.
+Run `sweepr` commands from any directory.
 
-#### 1\. See what it *would* delete (Safe Mode)
+#### 1\. Set your defaults (Recommended first step)
 
-This is the recommended first command. It shows you what it will find and how much space you'll save, with zero risk.
+Run the interactive wizard to set your preferred defaults (like `90` days).
+
+```bash
+sweepr config
+```
+
+#### 2\. See what it *would* delete (Safe Mode)
+
+This is the recommended first command. It will use your saved defaults.
 
 ```bash
 sweepr --dry-run
 ```
 
-#### 2\. Run Interactively (Recommended)
+#### 3\. Clean *only* Node.js projects
 
-This is the safest way to delete. It will scan, then ask you "yes/no" for *each project* it finds.
+```bash
+sweepr node
+```
+
+#### 4\. Run Interactively (Safest way to delete)
+
+This will scan, then ask you "yes/no" for *each project* it finds.
 
 ```bash
 sweepr -i
 ```
 
-#### 3\. Run and confirm "All or Nothing"
-
-This will scan (using the default 30 days) and then ask you *once* to delete everything it found.
-
-```bash
-sweepr
-```
-
-#### 4\. Delete without confirmation (⚠️ Use with caution\!)
+#### 5\. Delete without confirmation (⚠️ Use with caution\!)
 
 The `-y` flag skips all prompts and deletes everything it finds.
 
@@ -111,10 +117,12 @@ sweepr --days 90 -y
 
 ## ⚙️ Configuration (CLI Options)
 
+Flags always override your saved config.
+
 | Flag | Alias | Description | Default |
 | :--- | :--- | :--- | :--- |
-| **`--days <number>`** | `-d` | The number of days of inactivity to check for. | `30` |
-| **`--path <directory>`**| `-p` | The root directory to start scanning from. | Current directory |
+| **`--days <number>`** | `-d` | The number of days of inactivity to check for. | `30` (or as set by `sweepr config`) |
+| **`--path <directory>`**| `-p` | The root directory to start scanning from. | Current directory (or as set by `sweepr config`) |
 | **`--dry-run`** | | List projects to be cleaned without deleting. | `false` |
 | **`--yes`** | `-y` | Skip all confirmation prompts. | `false` |
 | **`--interactive`** | `-i` | Ask for confirmation for each folder one-by-one. | `false` |
