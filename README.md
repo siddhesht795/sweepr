@@ -1,4 +1,4 @@
-# 🧹 Node Janitor
+# 🧹 sweepr
 
 A smart CLI tool that cleans up old `node_modules` folders from projects you're not actively working on.
 
@@ -10,9 +10,9 @@ Deleting them manually is risky—what if you're still working on that project?
 
 ## The Solution
 
-**Node Janitor** solves this by intelligently scanning for **"inactive"** projects.
+**sweepr** solves this by intelligently scanning for **"inactive"** projects.
 
-It's smart: "inactivity" isn't just the folder's last-opened date. Node Janitor scans your project and finds the "last modified" time of your **actual code files** (like `.js`, `.ts`, `.json`).
+It's smart: "inactivity" isn't just the folder's last-opened date. `sweepr` scans your project and finds the "last modified" time of your **actual code files** (like `.js`, `.ts`, `.json`).
 
 If you haven't changed any *code* in a project for a set amount of time (e.g., 30 days), it's considered "inactive," and its `node_modules` folder becomes a target for deletion.
 
@@ -21,7 +21,7 @@ If you haven't changed any *code* in a project for a set amount of time (e.g., 3
 Here's how it works. It finds old projects, shows you how much space you'll save, and asks for confirmation.
 
 ```bash
-$ node-janitor --dry-run --days 60
+$ sweepr --dry-run --days 60
 Scanning for projects in: /home/siddhesh/Projects
 Finding projects inactive for 60 days (last code change before 9/8/2025)...
 
@@ -56,31 +56,31 @@ Total space that would be reclaimed: 646.5 MB
 
 To use your tool on your own machine, you don't install it, you "link" it.
 
-1.  Navigate to your `node-janitor` project directory.
+1.  Navigate to your `sweepr` project directory.
 2.  Run this command once:
     ```bash
     npm link
     ```
-3.  You can now run the `node-janitor` command from anywhere in your terminal\!
+3.  You can now run the `sweepr` command from anywhere in your terminal\!
 
 ### Global Installation (After Publishing to NPM)
 
 Once you publish this to NPM, anyone can install it with:
 
 ```bash
-npm install -g your-package-name
+npm install -g sweepr
 ```
 
 ### Usage
 
-You can run the `node-janitor` command from any directory.
+You can run the `sweepr` command from any directory.
 
 #### 1\. See what it *would* delete (Safe Mode)
 
 This is the recommended first command. It shows you what it will find and how much space you'll save, with zero risk.
 
 ```bash
-node-janitor --dry-run
+sweepr --dry-run
 ```
 
 #### 2\. Run Interactively (Recommended)
@@ -88,7 +88,7 @@ node-janitor --dry-run
 This is the safest way to delete. It will scan, then ask you "yes/no" for *each project* it finds.
 
 ```bash
-node-janitor -i
+sweepr -i
 ```
 
 #### 3\. Run and confirm "All or Nothing"
@@ -96,7 +96,7 @@ node-janitor -i
 This will scan (using the default 30 days) and then ask you *once* to delete everything it found.
 
 ```bash
-node-janitor
+sweepr
 ```
 
 #### 4\. Delete without confirmation (⚠️ Use with caution\!)
@@ -104,7 +104,7 @@ node-janitor
 The `-y` flag skips all prompts and deletes everything it finds.
 
 ```bash
-node-janitor --days 90 -y
+sweepr --days 90 -y
 ```
 
 -----
