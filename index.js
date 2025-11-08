@@ -6,8 +6,10 @@ import inquirer from 'inquirer';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
+import trash from 'trash';
+import ora from 'ora';
 
-// --- (Constants unchanged) ---
+// --- CONSTANTS ---
 const CODE_EXTENSIONS = new Set([
   '.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx',
   '.json', 'package.json', 'package-lock.json',
@@ -20,8 +22,9 @@ const IGNORE_DIRS = new Set([
   'node_modules', '.git', 'dist', 'build',
   'coverage', '.cache', 'public', 'vendor'
 ]);
+const GLOBAL_CONFIG_PATH = path.join(os.homedir(), '.sweeprrc');
 
-// --- (Helper functions unchanged) ---
+// --- HELPER FUNCTIONS ---
 function formatBytes(bytes, decimals = 2) {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
@@ -62,9 +65,6 @@ async function getProjectLastActivity(dir) {
   try {
     entries = await fs.readdir(dir, { withFileTypes: true });
   } catch (err) {
-    if (err.code !== 'EPERM' && err.code !== 'EACCES') {
-      console.error(chalk.red(`Could not scan ${dir}: ${err.message}`));
-    }
     return latestMtime;
   }
   for (const entry of entries) {
@@ -97,9 +97,6 @@ async function findNodeModules(dir) {
   try {
     entries = await fs.readdir(dir, { withFileTypes: true });
   } catch (err) {
-    if (err.code !== 'EPERM' && err.code !== 'EACCES') {
-      console.error(chalk.red(`Could not scan ${dir}: ${err.message}`));
-    }
     return [];
   }
   for (const entry of entries) {
@@ -114,9 +111,7 @@ async function findNodeModules(dir) {
             mtime: lastActivityTime,
             parent: parentDir
           });
-        } catch (err) {
-          console.error(chalk.red(`Could not scan project ${parentDir}: ${err.message}`));
-        }
+        } catch (err) {}
       } 
       else if (!IGNORE_DIRS.has(entry.name)) {
         const nestedDirs = await findNodeModules(fullPath);
@@ -127,130 +122,156 @@ async function findNodeModules(dir) {
   return results;
 }
 
-
-// --- (Cleanup functions unchanged) ---
+// --- CORE CLEANUP LOGIC ---
 async function runNodeCleanup(options) {
   const days = parseInt(options.days, 10);
   const scanPath = path.resolve(options.path);
   const thresholdDate = new Date();
   thresholdDate.setDate(thresholdDate.getDate() - days);
 
-  console.log(chalk.bgWhite.black.bold('\n--- Running Node.js Cleanup ---'));
-  console.log(chalk.blueBright(`Scanning for projects in: ${scanPath}`));
-  console.log(chalk.blueBright(`Finding projects inactive for ${days} days (last code change before ${thresholdDate.toLocaleDateString()})...`));
+  console.log('');
+  console.log(chalk.bgBlue.white.bold(' NODE.JS CLEANUP '));
+  console.log(chalk.dim(`Path: ${scanPath}`));
+  console.log(chalk.dim(`Inactivity Threshold: ${days} days (${thresholdDate.toLocaleDateString()})\n`));
   
+  const scanSpinner = ora('Scanning for inactive projects...').start();
   const allTargets = await findNodeModules(scanPath);
   const targets = allTargets.filter(target => target.mtime < thresholdDate);
 
   if (targets.length === 0) {
-    console.log(chalk.greenBright('✨ All clean! No inactive Node.js projects found.'));
+    scanSpinner.succeed(chalk.green('Scan complete. No inactive projects found! 🎉'));
     return;
   }
+  scanSpinner.succeed(chalk.green(`Scan complete. Found ${chalk.bold(targets.length)} inactive projects.`));
 
-  console.log(chalk.yellowBright('\nCalculating sizes... This may take a moment.'));
+  const sizeSpinner = ora('Calculating potential space savings...').start();
   const targetsWithSizes = await Promise.all(
     targets.map(async (target) => {
       const size = await getDirectorySize(target.path);
       return { ...target, size };
     })
   );
+  sizeSpinner.stop();
 
+  console.log(chalk.bold('\n📦 Projects eligible for cleanup:'));
   let totalSize = 0;
-  console.log(chalk.yellowBright.bold(`\nFound ${targetsWithSizes.length} inactive Node.js projects:`));
+
   targetsWithSizes.forEach(target => {
     totalSize += target.size;
-    const formattedSize = formatBytes(target.size);
-    console.log(`- Project: ${chalk.bold.whiteBright(target.parent)}`);
-    console.log(`  (Last code change: ${target.mtime.toLocaleDateString()}) -> ${chalk.redBright.bold(target.path)} (${chalk.yellowBright(formattedSize)})`);
+    const sizeStr = chalk.yellow(formatBytes(target.size).padStart(10));
+    const dateStr = chalk.dim(target.mtime.toLocaleDateString());
+    console.log(`   ${sizeStr}  ${chalk.white(target.parent)} ${chalk.dim('(Last active: ' + dateStr + ')')}`);
   });
 
+  const totalSizeStr = formatBytes(totalSize);
+
+  console.log(chalk.dim('   ' + '─'.repeat(50)));
+  console.log(`   ${chalk.green.bold(totalSizeStr.padStart(10))}  ${chalk.bold('TOTAL RECLAIMABLE SPACE')}\n`);
+
   if (options.dryRun) {
-    console.log(chalk.bgCyan.black.bold('\n[DRY RUN] No folders will be deleted.'));
-    console.log(chalk.yellowBright(`Total space that would be reclaimed: ${chalk.greenBright.bold(formatBytes(totalSize))}`));
+    ora().info(chalk.blueBright('DRY RUN MODE: No files were deleted.\n'));
     return;
+  }
+
+  if (options.trash) {
+    console.log(chalk.blue('ℹ️  Mode: Moving to system trash (safer)'));
+  } else {
+    console.log(chalk.red.bold('⚠️  Mode: PERMANENTLY DELETING'));
   }
 
   let successCount = 0;
   let failCount = 0;
   let totalBytesDeleted = 0;
-  let operationCancelled = false;
 
   if (options.interactive && !options.yes) {
-    console.log(chalk.yellowBright.bold('\nStarting interactive deletion...'));
+    console.log('');
     for (const target of targetsWithSizes) {
-      console.log(chalk.whiteBright(`\nProject: ${chalk.bold(target.parent)}`));
-      console.log(`  (Last code change: ${target.mtime.toLocaleDateString()}) -> ${chalk.redBright(target.path)} (${chalk.yellowBright(formatBytes(target.size))})`);
+      console.log(chalk.dim('─'.repeat(process.stdout.columns || 50))); 
+      console.log(`${chalk.bold(target.parent)}`);
+      console.log(chalk.dim(`Path: ${target.path}`));
+      console.log(`Size: ${chalk.yellow(formatBytes(target.size))}`);
       
       const { shouldDelete } = await inquirer.prompt([
-        { type: 'confirm', name: 'shouldDelete', message: 'Delete this node_modules folder?', default: false },
+        { type: 'confirm', name: 'shouldDelete', message: 'Clean this project?', default: false },
       ]);
 
       if (shouldDelete) {
+        const delSpinner = ora('Cleaning...').start();
         try {
-          await fs.rm(target.path, { recursive: true, force: true });
-          console.log(chalk.green.dim(`Deleted: ${target.path}`));
+          if (options.trash) {
+            await trash(target.path);
+          } else {
+            await fs.rm(target.path, { recursive: true, force: true });
+          }
+          delSpinner.succeed(chalk.green('Cleaned!'));
           successCount++;
           totalBytesDeleted += target.size;
         } catch (err) {
-          console.error(chalk.redBright(`Failed to delete ${target.path}: ${err.message}`));
+          delSpinner.fail(chalk.red(`Failed: ${err.message}`));
           failCount++;
         }
       } else {
-        console.log(chalk.yellowBright.dim('Skipped.'));
+        console.log(chalk.dim('Skipped.'));
       }
     }
-  
   } else {
-    console.log(chalk.yellowBright(`\nTotal space to be reclaimed: ${chalk.greenBright.bold(formatBytes(totalSize))}`));
-    
     let confirmed = options.yes;
     if (!confirmed) {
+      console.log('');
       const { shouldDelete } = await inquirer.prompt([
-        { type: 'confirm', name: 'shouldDelete', message: chalk.yellowBright(`Are you sure you want to delete the node_modules from all ${targetsWithSizes.length} projects?`), default: false },
+        { 
+          type: 'confirm', 
+          name: 'shouldDelete', 
+          message: chalk.bold(`Ready to clean ${targetsWithSizes.length} projects (${totalSizeStr})?`), 
+          default: false 
+        },
       ]);
       confirmed = shouldDelete;
     }
 
     if (confirmed) {
-      console.log(chalk.redBright.bold('\nDeleting all folders...'));
+      const delSpinner = ora('Cleaning projects...').start();
       for (const target of targetsWithSizes) {
         try {
-          await fs.rm(target.path, { recursive: true, force: true });
-          console.log(chalk.green.dim(`Deleted: ${target.path}`));
+          if (options.trash) {
+            await trash(target.path);
+          } else {
+            await fs.rm(target.path, { recursive: true, force: true });
+          }
           successCount++;
           totalBytesDeleted += target.size;
         } catch (err) {
-          console.error(chalk.redBright(`Failed to delete ${target.path}: ${err.message}`));
+          delSpinner.clear();
+          console.error(chalk.red(`\n❌ Failed to delete ${target.path}: ${err.message}`));
+          delSpinner.render();
           failCount++;
         }
       }
+
+      if (failCount === 0) {
+        delSpinner.succeed(chalk.green('All projects cleaned successfully!'));
+      } else {
+        delSpinner.warn(chalk.yellow(`Finished, but ${failCount} projects failed.`));
+      }
     } else {
-      operationCancelled = true;
+      console.log(chalk.yellow('\nOperation cancelled. Stay messy! 😉'));
+      return;
     }
   }
 
-  if (operationCancelled) {
-    console.log(chalk.yellowBright('\nOperation cancelled. No folders were deleted.'));
-  } else {
-    if (successCount > 0) {
-      console.log(chalk.greenBright(`\nNode.js Summary: Successfully deleted ${successCount} folders and reclaimed ${chalk.bold(formatBytes(totalBytesDeleted))}.`));
-    } else if (failCount === 0) {
-      console.log(chalk.yellowBright('\nNo Node.js folders were deleted.'));
-    }
-    if (failCount > 0) {
-      console.log(chalk.redBright(`Failed to delete ${failCount} Node.js folders.`));
-    }
+  if (successCount > 0) {
+    console.log('\n' + chalk.bgGreen.black.bold(' SUMMARY '));
+    console.log(`✅ Cleaned:   ${successCount} projects`);
+    if (failCount > 0) console.log(`❌ Failed:    ${failCount} projects`);
+    console.log(`🎉 Reclaimed: ${chalk.bold(formatBytes(totalBytesDeleted))} of disk space!\n`);
   }
 }
 
 async function runPythonCleanup(options) {
-  console.log(chalk.bgWhite.black.bold('\n--- Running Python Cleanup ---'));
-  console.log(chalk.yellowBright('Python cleanup feature is not yet implemented. Coming soon!'));
+    ora().info(chalk.dim('Python cleanup is coming soon!'));
 }
 
-// --- Config functions ---
-const GLOBAL_CONFIG_PATH = path.join(os.homedir(), '.sweeprrc');
-
+// --- CONFIGURATION LOGIC ---
 async function loadGlobalConfig() {
   try {
     const configContent = await fs.readFile(GLOBAL_CONFIG_PATH, 'utf8');
@@ -261,8 +282,9 @@ async function loadGlobalConfig() {
 }
 
 async function runConfigWizard() {
-  console.log(chalk.green.bold('Welcome to the sweepr configuration wizard!'));
-  console.log('This will set the default values for your global config file.');
+  console.clear(); 
+  console.log(chalk.green.bold('\n🧹 Welcome to the sweepr configuration wizard!\n'));
+  console.log(chalk.dim(`Settings will be saved to: ${GLOBAL_CONFIG_PATH}\n`));
 
   const currentConfig = await loadGlobalConfig();
 
@@ -270,36 +292,27 @@ async function runConfigWizard() {
     {
       type: 'input',
       name: 'days',
-      message: 'Default inactivity period (in days):',
+      message: 'Default inactivity period (days):',
       default: currentConfig.days || 30,
-      validate: (input) => {
-        const num = parseInt(input, 10);
-        if (isNaN(num) || num < 0) {
-          return 'Please enter a valid number of days.';
-        }
-        return true;
-      },
+      validate: (input) => !isNaN(parseInt(input, 10)) || 'Please enter a number',
     },
     {
       type: 'input',
       name: 'path',
-      message: 'Default scan path (leave blank to scan the current directory):',
+      message: 'Default scan path (leave empty for current dir):',
       default: currentConfig.path || '',
     },
-    // --- NEW SAFETY QUESTIONS ---
+    {
+        type: 'confirm',
+        name: 'trash',
+        message: 'Use system trash for deleted folders (safer)?',
+        default: currentConfig.trash ?? true, 
+    },
     {
       type: 'confirm',
       name: 'dryRun',
-      message: 'Always run in --dry-run mode by default (recommended)?',
+      message: 'Always run in "dry run" mode by default?',
       default: currentConfig.dryRun || false,
-    },
-    {
-      type: 'confirm',
-      name: 'yes',
-      message: chalk.red('WARNING: Skip all confirmation prompts by default (-y)?'),
-      default: currentConfig.yes || false,
-      // Only ask this if they DIDN'T just say yes to dry-run mode
-      when: (answers) => !answers.dryRun,
     },
   ];
 
@@ -309,18 +322,16 @@ async function runConfigWizard() {
     ...currentConfig,
     days: parseInt(answers.days, 10),
     path: answers.path,
-    // Save new safety settings
+    trash: answers.trash,
     dryRun: answers.dryRun,
-    yes: answers.yes || false, 
+    yes: currentConfig.yes || false, 
   };
 
   try {
-    const configString = JSON.stringify(newConfig, null, 2);
-    await fs.writeFile(GLOBAL_CONFIG_PATH, configString);
-    console.log(chalk.greenBright(`\n✅ Success! Configuration saved to ${GLOBAL_CONFIG_PATH}`));
+    await fs.writeFile(GLOBAL_CONFIG_PATH, JSON.stringify(newConfig, null, 2));
+    ora().succeed(chalk.green(`Configuration saved!`));
   } catch (err) {
-    console.error(chalk.redBright(`\n❌ Error: Could not save config file to ${GLOBAL_CONFIG_PATH}`));
-    console.error(err.message);
+    ora().fail(chalk.red(`Could not save config: ${err.message}`));
   }
 }
 
@@ -328,99 +339,86 @@ async function doesConfigExist() {
   try {
     await fs.stat(GLOBAL_CONFIG_PATH);
     return true;
-  } catch (err) {
-    if (err.code === 'ENOENT') return false;
-    throw err;
-  }
+  } catch (err) { return false; }
 }
 
-/**
- * Main function to run the CLI tool.
- */
+function mergeOptions(programOpts, config) {
+  return {
+      ...programOpts,
+      days: programOpts.days ?? config.days ?? '30',
+      path: programOpts.path ?? config.path ?? process.cwd(),
+      dryRun: programOpts.dryRun ?? config.dryRun ?? false,
+      yes: programOpts.yes ?? config.yes ?? false,
+      trash: programOpts.trash ?? config.trash ?? true,
+  };
+}
+
+// --- MAIN ---
 async function main() {
-  
-  // 1. First-run check
   let isFirstRun = false;
-  try {
-    isFirstRun = !(await doesConfigExist());
-  } catch (err) {
-    console.error(chalk.red('Could not check for config file:'), err.message);
-  }
+  try { isFirstRun = !(await doesConfigExist()); } catch (err) {}
 
-  const command = process.argv[2];
-  const isHelp = process.argv.includes('--help') || process.argv.includes('-h');
-
-  if (isFirstRun && command !== 'config' && !isHelp) {
-    console.log(chalk.green.bold('Welcome to sweepr! 🧹'));
-    console.log("It looks like this is your first time. Let's set up your global defaults.");
+  if (isFirstRun && !process.argv.includes('--help') && !process.argv.includes('-h') && process.argv[2] !== 'config') {
     await runConfigWizard();
-    console.log(chalk.cyan('Defaults saved! Proceeding with your command...\n'));
+    console.log(chalk.dim('----------------------------------------\n'));
   }
   
-  // 2. Load config
   const loadedConfig = await loadGlobalConfig();
 
-  // 3. Define options with new defaults
   program
-    .version('1.6.0')
+    .version('1.8.2')
     .description('A smart CLI tool to clean up inactive dev dependencies.')
-    .option('-d, --days <number>', 
-            'The number of days of project inactivity', 
-            (loadedConfig.days !== null && loadedConfig.days !== undefined) ? String(loadedConfig.days) : '30')
-    .option('-p, --path <directory>', 
-            'The root directory to start scanning from', 
-            loadedConfig.path || process.cwd())
-    // --- NEW DEFAULTS HERE ---
-    .option('--dry-run', 
-            'List folders to be deleted without actually deleting them',
-            loadedConfig.dryRun || false)
-    .option('-y, --yes', 
-            'Skip all confirmation prompts (DANGEROUS)',
-            loadedConfig.yes || false)
-    // -------------------------
-    .option('-i, --interactive', 'Interactively ask for each folder to be deleted');
+    .option('-d, --days <number>', `Inactivity threshold in days [default: ${loadedConfig.days || 30}]`)
+    .option('-p, --path <directory>', `Root path to scan [default: current dir]`)
+    .option('--dry-run', 'Simulate deletion without actually deleting')
+    .option('--no-dry-run', 'Disable dry-run mode')
+    .option('-y, --yes', 'Skip confirmation prompts (DANGEROUS)')
+    .option('--no-yes', 'Do NOT skip confirmation prompts')
+    .option('--trash', 'Move to system trash (safer)')
+    .option('--no-trash', 'Permanently delete files')
+    .option('-i, --interactive', 'Ask for confirmation for each folder');
 
   program
     .command('config')
-    .description('Run an interactive wizard to set your global default values')
+    .description('Run the configuration wizard')
     .action(runConfigWizard);
 
   program
     .command('node')
-    .description('Clean up inactive Node.js (node_modules) projects')
+    .description('Clean up inactive Node.js projects')
     .action(async () => {
-      const options = program.opts();
-      await runNodeCleanup(options);
+      await runNodeCleanup(mergeOptions(program.opts(), loadedConfig));
     });
 
   program
     .command('python')
-    .description('Clean up inactive Python (venv, __pycache__) projects')
+    .description('Clean up inactive Python projects')
     .action(async () => {
-      const options = program.opts();
-      await runPythonCleanup(options);
+      await runPythonCleanup(mergeOptions(program.opts(), loadedConfig));
     });
 
   program
     .command('all', { isDefault: true })
-    .description('Run all available cleanup operations (Node, Python, etc.)')
+    .description('Run all cleanup operations')
     .action(async () => {
-      const options = program.opts();
       const firstArg = process.argv[2];
-      if (firstArg && firstArg !== 'all' && !firstArg.startsWith('-')) {
-        // intended sub-command
-      } else {
-        console.log(chalk.green.bold('Running all cleanup operations...'));
-        await runNodeCleanup(options);
-        await runPythonCleanup(options);
-        console.log(chalk.green.bold('\nAll cleanup operations complete.'));
+      if (firstArg && !firstArg.startsWith('-') && firstArg !== 'all') {
+         return;
       }
+      console.log(chalk.bold('🧹 Starting sweepr full cleanup...\n'));
+      await runNodeCleanup(mergeOptions(program.opts(), loadedConfig));
+      await runPythonCleanup(mergeOptions(program.opts(), loadedConfig));
+      console.log(chalk.bold('\n✨ Sweep complete!'));
     });
   
   await program.parseAsync(process.argv);
 }
 
 main().catch(err => {
-  console.error(chalk.redBright.bold(`An unexpected error occurred: ${err.message}`));
+  if (ora().isSpinning) {
+      ora().fail(chalk.redBright(err.message));
+  } else {
+      console.error(chalk.redBright.bold(`An unexpected error occurred: ${err.message}`));
+  }
   process.exit(1);
 });
