@@ -353,7 +353,7 @@ function mergeOptions(programOpts, config) {
   };
 }
 
-// --- MAIN ---
+// --- MAIN FUNCTION---
 async function main() {
   let isFirstRun = false;
   try { isFirstRun = !(await doesConfigExist()); } catch (err) {}
