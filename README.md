@@ -1,6 +1,6 @@
 # 🧹 sweepr
 
-A smart CLI tool that cleans up old dependencies and cache from projects you're not actively working on.
+A smart, safe CLI tool that cleans up old dependencies and cache from projects you're not actively working on.
 
 ## The Problem
 
@@ -14,31 +14,36 @@ Deleting them manually is risky—what if you're still working on that project?
 
 It's smart: "inactivity" isn't just the folder's last-opened date. `sweepr` scans your project and finds the "last modified" time of your **actual code files** (like `.js`, `.ts`, `.json`, `.py`).
 
-If you haven't changed any *code* in a project for a set amount of time (e.g., 30 days), it's considered "inactive," and its dependencies become targets for deletion.
+If you haven't changed any *code* in a project for a set amount of time (e.g., 30 days), it's considered "inactive," and its dependencies become targets for cleanup.
 
 ## Demo
 
+
+
 ```bash
-$ sweepr --dry-run --days 60
-Running all cleanup operations...
+$ sweepr --days 60
 
---- Running Node.js Cleanup ---
-Scanning for projects in: /home/siddhesh/Projects
-Finding projects inactive for 60 days (last code change before 9/8/2025)...
-Calculating sizes... This may take a moment.
+ NODE.JS CLEANUP
+Path: /home/siddhesh/Projects
+Inactivity Threshold: 60 days (09/09/2025)
 
-Found 2 inactive projects containing node_modules:
-- Project: /home/siddhesh/Projects/old-blog
-  (Last code change: 7/15/2025) -> .../old-blog/node_modules (234.5 MB)
-- Project: /home/siddhesh/Projects/archive/defunct-startup
-  (Last code change: 1/2/2025) -> .../defunct-startup/node_modules (412.0 MB)
-[DRY RUN] No folders will be deleted.
-Total space that would be reclaimed: 646.5 MB
+✔ Scan complete. Found 2 inactive projects.
+✔ Calculating potential space savings...
 
---- Running Python Cleanup ---
-Python cleanup feature is not yet implemented. Coming soon!
+📦 Projects eligible for cleanup:
+   234.5 MB  /home/siddhesh/Projects/old-blog (Last active: 07/15/2025)
+   412.0 MB  /home/siddhesh/Projects/archive/defunct-startup (Last active: 01/02/2025)
+   ────────
+   646.5 MB  TOTAL RECLAIMABLE SPACE
 
-All cleanup operations complete.
+ℹ️  Mode: Moving to system trash (safer)
+
+? Ready to clean 2 projects (646.5 MB)? Yes
+✔ All projects cleaned successfully!
+
+ SUMMARY
+✅ Cleaned:   2 projects
+🎉 Reclaimed: 646.5 MB of disk space!
 ````
 
 -----
@@ -47,11 +52,11 @@ All cleanup operations complete.
 
   - **Multi-Language Support:** Cleans up Node.js (`node_modules`) and (soon) Python (`venv`, `__pycache__`).
   - **Smart Activity Scan:** Checks code file timestamps, not just `README.md` or `.env` files.
-  - **Storage Calculation:** Scans the size of each dependency folder and shows you the total space you'll reclaim.
-  - **Configurable Defaults:** Run `sweepr config` to set your default inactivity period and scan path.
-  - **Dry Run Mode:** Includes a `--dry-run` flag to see what would be deleted, with zero risk.
-  - **Interactive Mode:** Use the `-i` flag to approve or deny the deletion of *each folder* one by one.
-  - **Recursive:** Scans all sub-folders to find every project, no matter how deeply nested.
+  - **Soft Delete (Safer):** Moves folders to your system Trash/Recycle Bin by default, so you can undo mistakes.
+  - **Modern UI:** Beautiful terminal output with spinners, colors, and clear summaries.
+  - **Configurable Defaults:** Run `sweepr config` to set your preferred inactivity period, path, and safety settings.
+  - **Interactive Mode:** Use `-i` to approve or deny each folder one by one.
+  - **Dry Run Mode:** Use `--dry-run` to see exactly what would happen without touching a single file.
 
 -----
 
@@ -77,7 +82,7 @@ Run `sweepr` commands from any directory.
 
 #### 1\. Set your defaults (Recommended first step)
 
-Run the interactive wizard to set your preferred defaults (like `90` days).
+Run the interactive wizard to set your preferred defaults (like `90` days, or enabling permanent deletion).
 
 ```bash
 sweepr config
@@ -105,12 +110,12 @@ This will scan, then ask you "yes/no" for *each project* it finds.
 sweepr -i
 ```
 
-#### 5\. Delete without confirmation (⚠️ Use with caution\!)
+#### 5\. Force permanent deletion (⚠️ Dangerous\!)
 
-The `-y` flag skips all prompts and deletes everything it finds.
+Override the "trash" default and permanently delete files.
 
 ```bash
-sweepr --days 90 -y
+sweepr --no-trash
 ```
 
 -----
@@ -121,9 +126,11 @@ Flags always override your saved config.
 
 | Flag | Alias | Description | Default |
 | :--- | :--- | :--- | :--- |
-| **`--days <number>`** | `-d` | The number of days of inactivity to check for. | `30` (or as set by `sweepr config`) |
-| **`--path <directory>`**| `-p` | The root directory to start scanning from. | Current directory (or as set by `sweepr config`) |
-| **`--dry-run`** | | List projects to be cleaned without deleting. | `false` |
+| **`--days <number>`** | `-d` | The number of days of inactivity to check for. | `30` (or as set by `config`) |
+| **`--path <directory>`**| `-p` | The root directory to start scanning from. | Current directory (or as set by `config`) |
+| **`--trash`** | | Move deleted folders to the system trash (safer). | `true` (or as set by `config`) |
+| **`--no-trash`** | | **Permanently** delete folders (dangerous). | |
+| **`--dry-run`** | | List projects to be cleaned without deleting. | `false` (or as set by `config`) |
 | **`--yes`** | `-y` | Skip all confirmation prompts. | `false` |
 | **`--interactive`** | `-i` | Ask for confirmation for each folder one-by-one. | `false` |
 
