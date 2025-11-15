@@ -1,5 +1,7 @@
 # 🧹 sweepr
 
+![sweepr Logo Placeholder](./src/logo/sweepr_logo_NoBG_2.png)
+
 A smart, safe CLI tool that cleans up old dependencies and cache from projects you're not actively working on.
 
 ## The Problem
@@ -17,8 +19,6 @@ It's smart: "inactivity" isn't just the folder's last-opened date. `sweepr` scan
 If you haven't changed any *code* in a project for a set amount of time (e.g., 30 days), it's considered "inactive," and its dependencies become targets for cleanup.
 
 ## Demo
-
-
 
 ```bash
 $ sweepr --days 60
@@ -44,21 +44,21 @@ Inactivity Threshold: 60 days (09/09/2025)
  SUMMARY
 ✅ Cleaned:   2 projects
 🎉 Reclaimed: 646.5 MB of disk space!
+📈 Lifetime reclaimed: 1.2 GB
 ````
-
------
 
 ## ✨ Features
 
-  - **Multi-Language Support:** Cleans up Node.js (`node_modules`) and (soon) Python (`venv`, `__pycache__`).
-  - **Smart Activity Scan:** Checks code file timestamps, not just `README.md` or `.env` files.
-  - **Soft Delete (Safer):** Moves folders to your system Trash/Recycle Bin by default, so you can undo mistakes.
-  - **Modern UI:** Beautiful terminal output with spinners, colors, and clear summaries.
-  - **Configurable Defaults:** Run `sweepr config` to set your preferred inactivity period, path, and safety settings.
-  - **Interactive Mode:** Use `-i` to approve or deny each folder one by one.
-  - **Dry Run Mode:** Use `--dry-run` to see exactly what would happen without touching a single file.
-
------
+  * **Multi-Language Support:** Cleans up Node.js (`node_modules`) and Python (`venv`).
+  * **Smart Activity Scan:** Checks code file timestamps, not just `README.md` or `.env` files.
+  * **Python `venv` Safety:** Automatically generates `requirements.sweepr.txt` for inactive `venv`s before deletion, ensuring you can rebuild your environment.
+  * **Structural `venv` Detection:** Identifies Python virtual environments by their internal structure (`pyvenv.cfg`), regardless of their folder name.
+  * **Lifetime Savings Tracking:** Run `sweepr stats` to see a running total of all the disk space you've reclaimed\!
+  * **Soft Delete (Safer):** Moves folders to your system Trash/Recycle Bin by default, so you can undo mistakes.
+  * **Modern UI:** Beautiful terminal output with spinners, colors, and clear summaries.
+  * **Configurable Defaults:** Run `sweepr config` to set your preferred inactivity period, path, and safety settings.
+  * **Interactive Mode:** Use `-i` to approve or deny each folder one by one.
+  * **Dry Run Mode:** Use `--dry-run` to see exactly what would happen without touching a single file.
 
 ## 🚀 Installation & Usage
 
@@ -102,7 +102,15 @@ sweepr --dry-run
 sweepr node
 ```
 
-#### 4\. Run Interactively (Safest way to delete)
+#### 4\. Clean *only* Python projects
+
+This will scan for inactive Python virtual environments (`venv`s) and, before deleting, will attempt to generate a `requirements.sweepr.txt` file in the project's root for safe rebuilding.
+
+```bash
+sweepr python
+```
+
+#### 5\. Run Interactively (Safest way to delete)
 
 This will scan, then ask you "yes/no" for *each project* it finds.
 
@@ -110,7 +118,7 @@ This will scan, then ask you "yes/no" for *each project* it finds.
 sweepr -i
 ```
 
-#### 5\. Force permanent deletion (⚠️ Dangerous\!)
+#### 6\. Force permanent deletion (⚠️ Dangerous\!)
 
 Override the "trash" default and permanently delete files.
 
@@ -118,30 +126,38 @@ Override the "trash" default and permanently delete files.
 sweepr --no-trash
 ```
 
------
+#### 7\. Check your lifetime savings
+
+See how much disk space you've reclaimed since you started using `sweepr`\!
+
+```bash
+sweepr stats
+```
 
 ## ⚙️ Configuration (CLI Options)
 
 Flags always override your saved config.
 
 | Flag | Alias | Description | Default |
-| :--- | :--- | :--- | :--- |
+| ----- | ----- | ----- | ----- |
 | **`--days <number>`** | `-d` | The number of days of inactivity to check for. | `30` (or as set by `config`) |
-| **`--path <directory>`**| `-p` | The root directory to start scanning from. | Current directory (or as set by `config`) |
-| **`--trash`** | | Move deleted folders to the system trash (safer). | `true` (or as set by `config`) |
-| **`--no-trash`** | | **Permanently** delete folders (dangerous). | |
-| **`--dry-run`** | | List projects to be cleaned without deleting. | `false` (or as set by `config`) |
+| **`--path <directory>`** | `-p` | The root directory to start scanning from. | Current directory (or as set by `config`) |
+| **`--trash`** |  | Move deleted folders to the system trash (safer). | `true` (or as set by `config`) |
+| **`--no-trash`** |  | **Permanently** delete folders (dangerous). |  |
+| **`--dry-run`** |  | List projects to be cleaned without deleting. | `false` (or as set by `config`) |
 | **`--yes`** | `-y` | Skip all confirmation prompts. | `false` |
 | **`--interactive`** | `-i` | Ask for confirmation for each folder one-by-one. | `false` |
-
------
 
 ## 💡 How "Activity" is Measured
 
 This tool is smart about what it considers "activity."
 
-  - It recursively scans every file and folder in your project **except** for directories like `.git`, `dist`, `build`, and (of course) `node_modules`.
-  - It **only** checks the "last modified" time of files with "code" extensions (e.g., `.js`, `.mjs`, `.ts`, `.tsx`, `.json`, `.css`, `.html`, `.py`, etc.).
-  - This means changing a `README.md`, `.env`, or `.gitignore` file **will not** mark your project as "active." This is intentional, as you haven't changed the *code*.
+  * It recursively scans every file and folder in your project **except** for directories like `.git`, `dist`, `build`, `node_modules`, `venv`, `__pycache__`, and other dependency/cache folders.
+  * It **only** checks the "last modified" time of files with "code" extensions (e.g., `.js`, `.mjs`, `.ts`, `.tsx`, `.json`, `.css`, `.html`, `.py`, etc.).
+  * This means changing a `README.md`, `.env`, or `.gitignore` file **will not** mark your project as "active." This is intentional, as you haven't changed the *code*.
 
-You can customize the list of extensions and ignored directories by editing the `CODE_EXTENSIONS` and `IGNORE_DIRS` sets at the top of `index.js`.
+You can customize the list of extensions and ignored directories by editing the `CODE_EXTENSIONS` and `IGNORE_DIRS` sets in `src/constants.js`.
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](https://www.google.com/search?q=LICENSE) file for details.
