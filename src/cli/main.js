@@ -5,22 +5,26 @@ import { loadGlobalConfig, doesConfigExist, mergeOptions } from '../utils/config
 import { runConfigWizard } from './wizard.js';
 import { runNodeCleanup } from '../lang/node.js';
 import { runPythonCleanup } from '../lang/python.js';
-import { formatBytes } from '../utils/helpers.js'; // Needed for stats command
+import { formatBytes } from '../utils/helpers.js';
+import { displayHelp } from './help.js'; // --- NEW IMPORT ---
 
 export async function main() {
   let isFirstRun = false;
-  try { isFirstRun = !(await doesConfigExist()); } catch (err) {}
+  try { isFirstRun = !(await doesConfigExist()); } catch (err) { }
 
   if (isFirstRun && !process.argv.includes('--help') && !process.argv.includes('-h') && process.argv[2] !== 'config') {
     await runConfigWizard();
     console.log(chalk.dim('----------------------------------------\n'));
   }
-  
+
   const loadedConfig = await loadGlobalConfig();
 
   program
     .version('1.9.0')
     .description('A smart CLI tool to clean up inactive dev dependencies.')
+    // We suppress the default help so we can use ours if needed, 
+    // though commander's default -h is usually fine to keep as a fallback.
+    // .helpOption(false) 
     .option('-d, --days <number>', `Inactivity threshold in days [default: ${loadedConfig.days || 30}]`)
     .option('-p, --path <directory>', `Root path to scan [default: current dir]`)
     .option('--dry-run', 'Simulate deletion without actually deleting')
@@ -31,19 +35,26 @@ export async function main() {
     .option('--no-trash', 'Permanently delete files')
     .option('-i, --interactive', 'Ask for confirmation for each folder');
 
+  // --- NEW: Custom Help Command ---
+  program
+    .command('help')
+    .description('Show the custom help menu')
+    .action(() => {
+      displayHelp();
+    });
+
   program.command('config')
     .description('Run the configuration wizard')
     .action(runConfigWizard);
 
-  // --- NEW STATS COMMAND ---
   program.command('stats')
     .description('Show lifetime space savings')
     .action(async () => {
-        const config = await loadGlobalConfig();
-        const total = config.totalReclaimedBytes || 0;
-        console.log('');
-        console.log(chalk.bgCyan.black.bold(' SWEEPR STATS '));
-        console.log(`📈 Lifetime space reclaimed: ${chalk.green.bold(formatBytes(total))}\n`);
+      const config = await loadGlobalConfig();
+      const total = config.totalReclaimedBytes || 0;
+      console.log('');
+      console.log(chalk.bgCyan.black.bold(' SWEEPR STATS '));
+      console.log(`📈 Lifetime space reclaimed: ${chalk.green.bold(formatBytes(total))}\n`);
     });
 
   program.command('node')
@@ -62,15 +73,29 @@ export async function main() {
     .description('Run all cleanup operations')
     .action(async () => {
       const firstArg = process.argv[2];
-      if (firstArg && !firstArg.startsWith('-') && firstArg !== 'all') {
-         return;
+
+      // If user typed 'sweepr help' or 'sweepr --help', don't run 'all'
+      if (firstArg === 'help' || firstArg === '--help' || firstArg === '-h') {
+        return;
       }
+
+      if (firstArg && !firstArg.startsWith('-') && firstArg !== 'all') {
+        // Invalid command, show help
+        displayHelp();
+        return;
+      }
+
       console.log(chalk.bold('🧹 Starting sweepr full cleanup...'));
       const opts = mergeOptions(program.opts(), loadedConfig);
       await runNodeCleanup(opts);
       await runPythonCleanup(opts);
       console.log(chalk.bold('\n✨ Sweep complete!'));
     });
-  
+
+  // Override default help behavior to show our custom screen
+  program.on('--help', () => {
+    displayHelp();
+  });
+
   await program.parseAsync(process.argv);
 }

@@ -41,25 +41,9 @@ Inactivity Threshold: 60 days (09/09/2025)
 ? Ready to clean 2 projects (646.5 MB)? Yes
 ✔ All projects cleaned successfully!
 
- PYTHON CLEANUP
-Path: /home/siddhesh/Projects
-Inactivity Threshold: 60 days (09/09/2025)
-
-✔ Scan complete. Found 1 inactive projects.
-✔ Verifying projects by generating requirements...
-✔ Calculating potential space savings...
-
-📦 Projects eligible for cleanup:
-   120.0 MB  /home/siddhesh/Projects/data-analysis-tool (Last active: 05/20/2025)
-   ────────
-   120.0 MB  TOTAL RECLAIMABLE SPACE
-
-? Ready to clean 1 projects (120.0 MB)? Yes
-✔ Cleaned!
-
  SUMMARY
-✅ Cleaned:   3 projects
-🎉 Reclaimed: 766.5 MB of disk space!
+✅ Cleaned:   2 projects
+🎉 Reclaimed: 646.5 MB of disk space!
 ````
 
 -----
@@ -70,10 +54,11 @@ Inactivity Threshold: 60 days (09/09/2025)
   - **Smart Activity Scan:** Checks code file timestamps, not just `README.md` or `.env` files.
   - **Python Safety Net:** Before deleting a Python `venv`, `sweepr` automatically generates a `requirements.sweepr.txt` file in the project root, ensuring you can easily rebuild the environment later.
   - **Structural Detection:** Identifies Python virtual environments by their internal structure (`pyvenv.cfg`), regardless of their folder name.
+  - **Parallel Processing:** Uses parallel execution for Python safety checks and size calculations, making scans lightning fast.
   - **Soft Delete (Safer):** Moves folders to your system Trash/Recycle Bin by default, so you can undo mistakes.
   - **Lifetime Stats:** Tracks the total disk space you've reclaimed over time.
   - **Configurable Defaults:** Run `sweepr config` to set your preferred inactivity period, path, and safety settings via an interactive wizard.
-  - **Interactive Mode:** Use `-i` to approve or deny each folder one by one.
+  - **Interactive Selection Mode:** Use `-i` to see a numbered list of projects and select exactly which ones to delete (e.g., `1, 3` or `all`).
   - **Dry Run Mode:** Use `--dry-run` to see exactly what would happen without touching a single file.
 
 -----
@@ -128,9 +113,9 @@ This will scan for inactive `venv`s and generate receipt files before cleaning.
 sweepr python
 ```
 
-#### 5\. Run Interactively (Safest way to delete)
+#### 5\. Run Interactive Selection (Best Control)
 
-This will scan, then ask you "yes/no" for *each project* it finds.
+This shows you a list of all inactive projects found. You can then type the numbers of the projects you want to clean (e.g., `1, 3, 5`), type `all` to clean everything, or `none` to exit.
 
 ```bash
 sweepr -i
@@ -165,8 +150,9 @@ Flags always override your saved config.
 | **`--trash`** | | Move deleted folders to the system trash (safer). | `true` (or as set by `config`) |
 | **`--no-trash`** | | **Permanently** delete folders (dangerous). | |
 | **`--dry-run`** | | List projects to be cleaned without deleting. | `false` (or as set by `config`) |
+| **`--no-dry-run`** | | Force deletion if config defaults to dry-run. | |
 | **`--yes`** | `-y` | Skip all confirmation prompts. | `false` |
-| **`--interactive`** | `-i` | Ask for confirmation for each folder one-by-one. | `false` |
+| **`--interactive`** | `-i` | Show a list and ask for selection. | `false` |
 
 -----
 
