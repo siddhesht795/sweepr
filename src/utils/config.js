@@ -10,6 +10,23 @@ export async function loadGlobalConfig() {
   }
 }
 
+// --- NEW: Centralized save function ---
+export async function saveGlobalConfig(newConfig) {
+  const configString = JSON.stringify(newConfig, null, 2);
+  await fs.writeFile(GLOBAL_CONFIG_PATH, configString);
+}
+
+// --- NEW: Statistics tracker ---
+export async function updateLifetimeSavings(bytesReclaimed) {
+  const config = await loadGlobalConfig();
+  const currentTotal = config.totalReclaimedBytes || 0;
+  
+  config.totalReclaimedBytes = currentTotal + bytesReclaimed;
+  
+  await saveGlobalConfig(config);
+  return config.totalReclaimedBytes;
+}
+
 export async function doesConfigExist() {
   try {
     await fs.stat(GLOBAL_CONFIG_PATH);

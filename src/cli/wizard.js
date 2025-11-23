@@ -1,9 +1,8 @@
-import fs from 'fs/promises';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import ora from 'ora';
 import { GLOBAL_CONFIG_PATH } from '../constants.js';
-import { loadGlobalConfig } from '../utils/config.js';
+import { loadGlobalConfig, saveGlobalConfig } from '../utils/config.js';
 
 export async function runConfigWizard() {
   console.clear(); 
@@ -52,7 +51,7 @@ export async function runConfigWizard() {
   };
 
   try {
-    await fs.writeFile(GLOBAL_CONFIG_PATH, JSON.stringify(newConfig, null, 2));
+    await saveGlobalConfig(newConfig);
     ora().succeed(chalk.green(`Configuration saved!`));
   } catch (err) {
     ora().fail(chalk.red(`Could not save config: ${err.message}`));

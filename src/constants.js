@@ -13,7 +13,7 @@ export const CODE_EXTENSIONS = new Set([
 export const IGNORE_DIRS = new Set([
   'node_modules', '.git', 'dist', 'build',
   'coverage', '.cache', 'public', 'vendor',
-  'venv', '.venv', '__pycache__', 'env' // Added common Python ones too for future use
+  'venv', '.venv', 'env', '.env', '__pycache__'
 ]);
 
 export const GLOBAL_CONFIG_PATH = path.join(os.homedir(), '.sweeprrc');

@@ -34,3 +34,17 @@ export async function getDirectorySize(dir) {
   const sizes = await Promise.all(sizePromises);
   return sizes.reduce((acc, size) => acc + size, 0);
 }
+
+/**
+ * Checks if a directory is a Python venv by looking for 'pyvenv.cfg'.
+ * This implements Structural Detection.
+ */
+export async function isVenv(dirPath) {
+    const configPath = path.join(dirPath, 'pyvenv.cfg');
+    try {
+        await fs.stat(configPath);
+        return true;
+    } catch (err) {
+        return false;
+    }
+}

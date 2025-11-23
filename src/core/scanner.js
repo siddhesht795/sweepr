@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { IGNORE_DIRS, CODE_EXTENSIONS } from '../constants.js';
+import { isVenv } from '../utils/helpers.js';
 
 async function getProjectLastActivity(dir) {
   let latestMtime = new Date(0);
@@ -13,7 +14,8 @@ async function getProjectLastActivity(dir) {
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (!IGNORE_DIRS.has(entry.name)) {
+      // Don't scan ignored dirs OR venvs (to avoid false positives)
+      if (!IGNORE_DIRS.has(entry.name) && !(await isVenv(fullPath))) {
         const nestedMtime = await getProjectLastActivity(fullPath);
         if (nestedMtime > latestMtime) {
           latestMtime = nestedMtime;
@@ -34,8 +36,7 @@ async function getProjectLastActivity(dir) {
   return latestMtime;
 }
 
-// Generic scanner that can find ANY set of target directories
-export async function findTargetDirs(dir, targetSet) {
+export async function findTargets(dir, isTarget) {
   let results = [];
   let entries;
   try {
@@ -46,8 +47,8 @@ export async function findTargetDirs(dir, targetSet) {
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      // Check if this directory is one of our targets
-      if (targetSet.has(entry.name)) {
+      // Use the predicate function (structural or name check)
+      if (await isTarget(fullPath, entry.name)) {
         const parentDir = path.dirname(fullPath);
         try {
           const lastActivityTime = await getProjectLastActivity(parentDir);
@@ -58,9 +59,8 @@ export async function findTargetDirs(dir, targetSet) {
           });
         } catch (err) {}
       } 
-      // Recurse if not ignored
       else if (!IGNORE_DIRS.has(entry.name)) {
-        const nestedDirs = await findTargetDirs(fullPath, targetSet);
+        const nestedDirs = await findTargets(fullPath, isTarget);
         results = results.concat(nestedDirs);
       }
     }

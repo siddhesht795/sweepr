@@ -5,6 +5,7 @@ import { loadGlobalConfig, doesConfigExist, mergeOptions } from '../utils/config
 import { runConfigWizard } from './wizard.js';
 import { runNodeCleanup } from '../lang/node.js';
 import { runPythonCleanup } from '../lang/python.js';
+import { formatBytes } from '../utils/helpers.js'; // Needed for stats command
 
 export async function main() {
   let isFirstRun = false;
@@ -18,7 +19,7 @@ export async function main() {
   const loadedConfig = await loadGlobalConfig();
 
   program
-    .version('1.8.2')
+    .version('1.9.0')
     .description('A smart CLI tool to clean up inactive dev dependencies.')
     .option('-d, --days <number>', `Inactivity threshold in days [default: ${loadedConfig.days || 30}]`)
     .option('-p, --path <directory>', `Root path to scan [default: current dir]`)
@@ -33,6 +34,17 @@ export async function main() {
   program.command('config')
     .description('Run the configuration wizard')
     .action(runConfigWizard);
+
+  // --- NEW STATS COMMAND ---
+  program.command('stats')
+    .description('Show lifetime space savings')
+    .action(async () => {
+        const config = await loadGlobalConfig();
+        const total = config.totalReclaimedBytes || 0;
+        console.log('');
+        console.log(chalk.bgCyan.black.bold(' SWEEPR STATS '));
+        console.log(`📈 Lifetime space reclaimed: ${chalk.green.bold(formatBytes(total))}\n`);
+    });
 
   program.command('node')
     .description('Clean up inactive Node.js projects')

@@ -1,11 +1,11 @@
 import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
-import { findTargetDirs } from '../core/scanner.js';
+import { findTargets } from '../core/scanner.js';
 import { performCleanup } from '../core/cleaner.js';
 import { getDirectorySize, formatBytes } from '../utils/helpers.js';
 
-const NODE_TARGETS = new Set(['node_modules']);
+const isNodeModules = (dirPath, dirName) => dirName === 'node_modules';
 
 export async function runNodeCleanup(options) {
   const days = parseInt(options.days, 10);
@@ -19,8 +19,7 @@ export async function runNodeCleanup(options) {
   console.log(chalk.dim(`Inactivity Threshold: ${days} days (${thresholdDate.toLocaleDateString()})\n`));
   
   const scanSpinner = ora('Scanning for inactive projects...').start();
-  // Use generic scanner with Node targets
-  const allTargets = await findTargetDirs(scanPath, NODE_TARGETS);
+  const allTargets = await findTargets(scanPath, isNodeModules);
   const targets = allTargets.filter(target => target.mtime < thresholdDate);
 
   if (targets.length === 0) {
@@ -50,6 +49,5 @@ export async function runNodeCleanup(options) {
   console.log(chalk.dim('   ' + '─'.repeat(50)));
   console.log(`   ${chalk.green.bold(formatBytes(totalSize).padStart(10))}  ${chalk.bold('TOTAL RECLAIMABLE SPACE')}\n`);
 
-  // Hand off to generic cleaner
   await performCleanup(targetsWithSizes, options, totalSize);
 }
