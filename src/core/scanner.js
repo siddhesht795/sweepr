@@ -3,6 +3,7 @@ import path from 'path';
 import { IGNORE_DIRS, CODE_EXTENSIONS } from '../constants.js';
 import { isVenv } from '../utils/helpers.js';
 
+//function to check the last activity / modified date of the project directory
 async function getProjectLastActivity(dir) {
   let latestMtime = new Date(0);
   let entries;
@@ -14,7 +15,7 @@ async function getProjectLastActivity(dir) {
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      // Don't scan ignored dirs OR venvs (to avoid false positives)
+      //don't scan ignored dirs OR venvs(to avoid false positives)
       if (!IGNORE_DIRS.has(entry.name) && !(await isVenv(fullPath))) {
         const nestedMtime = await getProjectLastActivity(fullPath);
         if (nestedMtime > latestMtime) {
@@ -36,6 +37,7 @@ async function getProjectLastActivity(dir) {
   return latestMtime;
 }
 
+//function to find the target directories
 export async function findTargets(dir, isTarget) {
   let results = [];
   let entries;
@@ -47,7 +49,7 @@ export async function findTargets(dir, isTarget) {
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      // Use the predicate function (structural or name check)
+      // use the predicate(isTarget function) function for structural / name check
       if (await isTarget(fullPath, entry.name)) {
         const parentDir = path.dirname(fullPath);
         try {

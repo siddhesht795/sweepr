@@ -10,13 +10,13 @@ export async function loadGlobalConfig() {
   }
 }
 
-// --- NEW: Centralized save function ---
+// function to save updated config
 export async function saveGlobalConfig(newConfig) {
   const configString = JSON.stringify(newConfig, null, 2);
   await fs.writeFile(GLOBAL_CONFIG_PATH, configString);
 }
 
-// --- NEW: Statistics tracker ---
+// function to track stats(lifetime memory reclaimed)
 export async function updateLifetimeSavings(bytesReclaimed) {
   const config = await loadGlobalConfig();
   const currentTotal = config.totalReclaimedBytes || 0;
@@ -27,6 +27,7 @@ export async function updateLifetimeSavings(bytesReclaimed) {
   return config.totalReclaimedBytes;
 }
 
+//function to check if a config file already exists or not
 export async function doesConfigExist() {
   try {
     await fs.stat(GLOBAL_CONFIG_PATH);
@@ -34,6 +35,7 @@ export async function doesConfigExist() {
   } catch (err) { return false; }
 }
 
+//Update the config data
 export function mergeOptions(programOpts, config) {
   return {
       ...programOpts,

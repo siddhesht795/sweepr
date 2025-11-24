@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 
+//function to get the bytes in correct format
 export function formatBytes(bytes, decimals = 2) {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
@@ -10,6 +11,7 @@ export function formatBytes(bytes, decimals = 2) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
+//function to get the size of the directory
 export async function getDirectorySize(dir) {
   let entries;
   try {
@@ -35,10 +37,7 @@ export async function getDirectorySize(dir) {
   return sizes.reduce((acc, size) => acc + size, 0);
 }
 
-/**
- * Checks if a directory is a Python venv by looking for 'pyvenv.cfg'.
- * This implements Structural Detection.
- */
+//function to check if a directory is a Python venv or not by looking for 'pyvenv.cfg'.
 export async function isVenv(dirPath) {
     const configPath = path.join(dirPath, 'pyvenv.cfg');
     try {
