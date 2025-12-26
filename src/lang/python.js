@@ -11,38 +11,25 @@ import { getDirectorySize, formatBytes, isVenv } from '../utils/helpers.js';
 
 const execPromise = util.promisify(exec);
 
-/**
- * Tries to generate a 'requirements.sweepr.txt' file from a venv.
- * @param {string} venvPath Path to the venv directory
- * @returns {Promise<boolean>} True on success, false on failure
- */
+// generate a 'requirements.sweepr.txt' file from a venv. 
 async function generateRequirements(venvPath) {
     const parentDir = path.dirname(venvPath);
     const outputPath = path.join(parentDir, 'requirements.sweepr.txt');
     
-    // 1. Identify the Python executable within the venv
-    // Windows: venv/Scripts/python.exe
-    // POSIX: venv/bin/python
+    // identifies the Python executable file within the venv
     const binDir = os.platform() === 'win32' ? 'Scripts' : 'bin';
     const exeName = os.platform() === 'win32' ? 'python.exe' : 'python';
     const pythonPath = path.join(venvPath, binDir, exeName);
 
-    // 2. Verify python exists (sanity check)
     try {
         await fs.stat(pythonPath);
     } catch (e) {
-        // Python executable not found, likely a broken venv
         return false; 
     }
 
-    // 3. Run 'pip freeze' via the venv's python executable
-    // We use '-m pip' to ensure we use the pip installed in that environment.
-    // We capture stdout directly instead of using '>' redirection for better cross-platform safety.
     try {
         const { stdout } = await execPromise(`"${pythonPath}" -m pip freeze`);
         
-        // 4. Write the output to the file using Node.js fs
-        // Default to a comment if stdout is empty (empty venv)
         const content = stdout.trim() || '# No packages found in venv';
         await fs.writeFile(outputPath, content);
         return true;
@@ -62,10 +49,10 @@ export async function runPythonCleanup(options) {
   console.log(chalk.dim(`Path: ${scanPath}`));
   console.log(chalk.dim(`Inactivity Threshold: ${days} days (${thresholdDate.toLocaleDateString()})\n`));
   
-  // 1. Scan for all venvs structurally (looking for pyvenv.cfg)
+  // scan for all venvs structurally (looking for pyvenv.cfg)
   const scanSpinner = ora('Scanning for Python virtual environments...').start();
   
-  // We pass the isVenv check directly as the target finder
+  // we pass the isVenv check directly as the target finder
   const allTargets = await findTargets(scanPath, isVenv);
   
   const inactiveTargets = allTargets.filter(target => target.mtime < thresholdDate);
@@ -75,11 +62,9 @@ export async function runPythonCleanup(options) {
     return;
   }
 
-  // 2. Generate Requirements (Safety Check)
   scanSpinner.text = `Found ${inactiveTargets.length} inactive envs. Generating requirements files...`;
   
-  // --- OPTIMIZATION: Run in parallel using Promise.all ---
-  // This processes all venvs simultaneously instead of waiting for one to finish before starting the next.
+  // runs parallelly using Promise.all
   const results = await Promise.all(inactiveTargets.map(async (target) => {
       const success = await generateRequirements(target.path);
       return { target, success };
@@ -101,7 +86,6 @@ export async function runPythonCleanup(options) {
     unsafeTargets.forEach(t => console.log(chalk.dim(`   - ${t.parent}`)));
   }
 
-  // 3. Calculate Sizes
   const sizeSpinner = ora('Calculating potential space savings...').start();
   const targetsWithSizes = await Promise.all(
     safeTargets.map(async (target) => {
@@ -111,7 +95,6 @@ export async function runPythonCleanup(options) {
   );
   sizeSpinner.stop();
 
-  // 4. Display List
   console.log(chalk.bold('\n📦 Projects eligible for cleanup:'));
   let totalSize = 0;
   targetsWithSizes.forEach(target => {
@@ -124,6 +107,5 @@ export async function runPythonCleanup(options) {
   console.log(chalk.dim('   ' + '─'.repeat(50)));
   console.log(`   ${chalk.green.bold(formatBytes(totalSize).padStart(10))}  ${chalk.bold('TOTAL RECLAIMABLE SPACE')}\n`);
   
-  // 5. Perform Cleanup
   await performCleanup(targetsWithSizes, options, totalSize);
 }

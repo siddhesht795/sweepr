@@ -21,10 +21,7 @@ export async function main() {
 
   program
     .version('1.9.0')
-    .description('A smart CLI tool to clean up inactive dev dependencies.')
-    // We suppress the default help so we can use ours if needed, 
-    // though commander's default -h is usually fine to keep as a fallback.
-    // .helpOption(false) 
+    .description('A smart CLI tool to clean up inactive dev dependencies.') 
     .option('-d, --days <number>', `Inactivity threshold in days [default: ${loadedConfig.days || 30}]`)
     .option('-p, --path <directory>', `Root path to scan [default: current dir]`)
     .option('--dry-run', 'Simulate deletion without actually deleting')
@@ -35,7 +32,6 @@ export async function main() {
     .option('--no-trash', 'Permanently delete files')
     .option('-i, --interactive', 'Ask for confirmation for each folder');
 
-  // --- NEW: Custom Help Command ---
   program
     .command('help')
     .description('Show the custom help menu')
@@ -74,13 +70,12 @@ export async function main() {
     .action(async () => {
       const firstArg = process.argv[2];
 
-      // If user typed 'sweepr help' or 'sweepr --help', don't run 'all'
+      // if the user types 'sweepr help' or 'sweepr --help' then don't run 'all'
       if (firstArg === 'help' || firstArg === '--help' || firstArg === '-h') {
         return;
       }
 
       if (firstArg && !firstArg.startsWith('-') && firstArg !== 'all') {
-        // Invalid command, show help
         displayHelp();
         return;
       }
@@ -92,7 +87,7 @@ export async function main() {
       console.log(chalk.bold('\n✨ Sweep complete!'));
     });
 
-  // Override default help behavior to show our custom screen
+  // to override default help behavior to show our custom screen
   program.on('--help', () => {
     displayHelp();
   });
