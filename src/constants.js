@@ -18,14 +18,14 @@ export const IGNORE_DIRS = new Set([
   '.pytest_cache', '.mypy_cache',
 
   // Package Managers & Configs
-  '.npm',          // NPM Cache
-  '.nvm',          // Node Version Manager
-  '.yarn',         // Yarn Cache
-  '.pnpm-store',   // pnpm Store
-  '.local',        // Linux User Data (Contains Trash!)
-  '.config',       // User Configs
-  '.cargo',        // Rust Cache
-  '.rustup',       // Rust Toolchain
+  '.npm',          
+  '.nvm',
+  '.yarn',
+  '.pnpm-store',
+  '.local',
+  '.config',
+  '.cargo',
+  '.rustup',
 
   // IDEs
   '.vscode', '.vscode-insiders', '.idea', '.vscode-server',
