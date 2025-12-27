@@ -11,7 +11,7 @@
     "type": "git",
     "url": "git+https://github.com/siddhesht795/sweepr.git"
   },
-  "readme": "README.npm.md",
+  "readme": "/README.npm.md",
   "files": [
     "bin",
     "src",
