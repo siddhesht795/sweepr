@@ -6,6 +6,7 @@ export async function loadGlobalConfig() {
     const configContent = await fs.readFile(GLOBAL_CONFIG_PATH, 'utf8');
     return JSON.parse(configContent);
   } catch (err) {
+    console.log('\n💡 Tip: If installed globally (-g), run "sweepr". If local, use "npx sweepr".');
     return {};
   }
 }
