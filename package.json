@@ -1,6 +1,6 @@
 {
   "name": "sweepr",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Sweep away digital clutter: A smart cleaner for Node.js and Python projects.",
   "main": "index.js",
   "type": "module",
@@ -8,8 +8,8 @@
     "sweepr": "./bin/sweepr.js"
   },
   "repository": {
-  "type": "git",
-  "url": "git+https://github.com/siddhesht795/sweepr.git"
+    "type": "git",
+    "url": "git+https://github.com/siddhesht795/sweepr.git"
   },
   "files": [
     "bin",
