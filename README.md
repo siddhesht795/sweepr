@@ -1,6 +1,9 @@
 # 🧹 sweepr
 
-![sweepr Logo Placeholder](/src/logo/sweepr_logo_NoBG_2.png)
+![sweepr Logo Placeholder](https://raw.githubusercontent.com/siddhesht795/sweepr/main/src/logo/sweepr_logo_NoBG_2.png?raw=true)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![npm version](https://img.shields.io/npm/v/sweepr.svg)](https://www.npmjs.com/package/sweepr)
 
 A smart, safe CLI tool that cleans up old dependencies and cache from projects you're not actively working on.
 
