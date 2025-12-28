@@ -158,11 +158,3 @@ However, **final responsibility always lies with the user**, particularly when u
 * `--no-trash`
 
 Always review output carefully before confirming destructive actions.
-
----
-
-If you want, next I can:
-
-* Cross-link this with **CLI Reference flags**
-* Add a **“Why sweepr won’t delete X” FAQ**
-* Generate a **Security & Trust** section for your GitHub README
