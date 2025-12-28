@@ -7,7 +7,7 @@
 
 Unlike manual deletion or naive cleanup scripts, `sweepr` determines *true project inactivity* by analyzing **actual code changes**, not folder timestamps.
 
-## ✨ Features
+## Features
 
 - **Smart Inactivity Detection**  
   Determines inactivity based on last modification time of real code files (`.js`, `.ts`, `.py`, etc.)
@@ -34,7 +34,7 @@ Unlike manual deletion or naive cleanup scripts, `sweepr` determines *true proje
 - **Cross-Platform**  
   Works on macOS, Linux, and Windows
 
-## 📚 Documentation
+## Documentation
 
 - **[Getting Started](docs/GETTING_STARTED.md)** — Installation and first cleanup
 - **[CLI Reference](docs/CLI_REFERENCE.md)** — Commands and flags
