@@ -1,176 +1,231 @@
 # 🧹 sweepr
 
-![sweepr Logo Placeholder](https://raw.githubusercontent.com/siddhesht795/sweepr/main/src/logo/sweepr_logo_NoBG_2.png?raw=true)
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![npm version](https://img.shields.io/npm/v/sweepr.svg)](https://www.npmjs.com/package/sweepr)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A smart, safe CLI tool that cleans up old dependencies and cache from projects you're not actively working on.
+**sweepr** is a smart, safety-first CLI tool that helps developers reclaim disk space by cleaning up **inactive project dependencies** such as `node_modules` and Python virtual environments — without risking active work.
 
-## The Problem
-
-If you're a developer, your hard drive is likely littered with `node_modules` folders, Python `venv`s, and `__pycache__` directories. Each one can consume hundreds of megabytes (or even gigabytes!) of space.
-
-Deleting them manually is risky—what if you're still working on that project?
-
-## The Solution
-
-**sweepr** solves this by intelligently scanning for **"inactive"** projects.
-
-It's smart: "inactivity" isn't just the folder's last-opened date. `sweepr` scans your project and finds the "last modified" time of your **actual code files** (like `.js`, `.ts`, `.json`, `.py`).
-
-If you haven't changed any *code* in a project for a set amount of time (e.g., 30 days), it's considered "inactive," and its dependencies become targets for cleanup.
-
-## Demo
-
-```bash
-$ sweepr --days 60
-
- NODE.JS CLEANUP
-Path: /home/siddhesh/Projects
-Inactivity Threshold: 60 days (09/09/2025)
-
-✔ Scan complete. Found 2 inactive projects.
-✔ Calculating potential space savings...
-
-📦 Projects eligible for cleanup:
-   234.5 MB  /home/siddhesh/Projects/old-blog (Last active: 07/15/2025)
-   412.0 MB  /home/siddhesh/Projects/archive/defunct-startup (Last active: 01/02/2025)
-   ────────
-   646.5 MB  TOTAL RECLAIMABLE SPACE
-
-ℹ️  Mode: Moving to system trash (safer)
-
-? Ready to clean 2 projects (646.5 MB)? Yes
-✔ All projects cleaned successfully!
-
- SUMMARY
-✅ Cleaned:   2 projects
-🎉 Reclaimed: 646.5 MB of disk space!
-````
-
------
+Unlike manual deletion or naive cleanup scripts, `sweepr` determines *true project inactivity* by analyzing **actual code changes**, not folder timestamps.
 
 ## ✨ Features
 
-  - **Multi-Language Support:** Cleans up Node.js (`node_modules`) and Python (`venv`, `.venv`, `env`).
-  - **Smart Activity Scan:** Checks code file timestamps, not just `README.md` or `.env` files.
-  - **Python Safety Net:** Before deleting a Python `venv`, `sweepr` automatically generates a `requirements.sweepr.txt` file in the project root, ensuring you can easily rebuild the environment later.
-  - **Structural Detection:** Identifies Python virtual environments by their internal structure (`pyvenv.cfg`), regardless of their folder name.
-  - **Parallel Processing:** Uses parallel execution for Python safety checks and size calculations, making scans lightning fast.
-  - **Soft Delete (Safer):** Moves folders to your system Trash/Recycle Bin by default, so you can undo mistakes.
-  - **Lifetime Stats:** Tracks the total disk space you've reclaimed over time.
-  - **Configurable Defaults:** Run `sweepr config` to set your preferred inactivity period, path, and safety settings via an interactive wizard.
-  - **Interactive Selection Mode:** Use `-i` to see a numbered list of projects and select exactly which ones to delete (e.g., `1, 3` or `all`).
-  - **Dry Run Mode:** Use `--dry-run` to see exactly what would happen without touching a single file.
+- **Smart Inactivity Detection**  
+  Determines inactivity based on last modification time of real code files (`.js`, `.ts`, `.py`, etc.)
 
------
+- **Multi-Language Support**  
+  - Node.js: `node_modules`  
+  - Python: `venv`, `.venv`, `env`
 
-## 🚀 Installation & Usage
+- **Python Safety Net**  
+  Automatically generates `requirements.sweepr.txt` before deleting a Python virtual environment
 
-### Local Development (Right Now)
+- **Soft Delete by Default**  
+  Moves folders to system Trash / Recycle Bin for easy recovery
 
-1.  Navigate to your `sweepr` project directory.
-2.  Run `npm link` (you only need to do this once).
-3.  You can now run the `sweepr` command from anywhere in your terminal\!
+- **Interactive Mode**  
+  Select exactly which projects to clean
 
-### Global Installation (After Publishing to NPM)
+- **Dry-Run Support**  
+  Preview cleanup results without deleting anything
 
-Once you publish this to NPM, anyone can install it with:
+- **Lifetime Stats**  
+  Tracks total disk space reclaimed across all runs
+
+- **Cross-Platform**  
+  Works on macOS, Linux, and Windows
+
+## 📚 Documentation
+
+- **[Getting Started](docs/GETTING_STARTED.md)** — Installation and first cleanup
+- **[CLI Reference](docs/CLI_REFERENCE.md)** — Commands and flags
+- **[Configuration Guide](docs/CONFIGURATION.md)** — Global defaults and config file
+- **[Safety & Design](docs/SAFETY_MODEL.md)** — How sweepr avoids deleting active projects
+- **[Contributing](CONTRIBUTING.md)** — How to contribute
+
+## 📦 Installation
+
+### Global Installation (Recommended)
 
 ```bash
 npm install -g sweepr
+````
+
+Verify installation:
+
+```bash
+sweepr --help
 ```
 
-### Usage
+## 🚀 Quick Start
 
-Run `sweepr` commands from any directory.
-
-#### 1\. Set your defaults (Recommended first step)
-
-Run the interactive wizard to set your preferred defaults (like `90` days, or enabling permanent deletion).
+### 1. Configure defaults (recommended)
 
 ```bash
 sweepr config
 ```
 
-#### 2\. See what it *would* delete (Safe Mode)
+Set:
 
-This is the recommended first command. It will use your saved defaults.
+* Inactivity threshold (days)
+* Default scan path
+* Trash vs permanent delete
+* Dry-run preference
+
+---
+
+### 2. Preview cleanup (safe)
 
 ```bash
 sweepr --dry-run
 ```
 
-#### 3\. Clean *only* Node.js projects
+---
 
-```bash
-sweepr node
-```
-
-#### 4\. Clean *only* Python projects
-
-This will scan for inactive `venv`s and generate receipt files before cleaning.
-
-```bash
-sweepr python
-```
-
-#### 5\. Run Interactive Selection (Best Control)
-
-This shows you a list of all inactive projects found. You can then type the numbers of the projects you want to clean (e.g., `1, 3, 5`), type `all` to clean everything, or `none` to exit.
+### 3. Interactive cleanup (best control)
 
 ```bash
 sweepr -i
 ```
 
-#### 6\. Force permanent deletion (⚠️ Dangerous\!)
+---
 
-Override the "trash" default and permanently delete files.
-
-```bash
-sweepr --no-trash
-```
-
-#### 7\. Check your lifetime savings
-
-See how much disk space you've reclaimed since you started using `sweepr`\!
+## 🧭 Example Output
 
 ```bash
-sweepr stats
+$ sweepr --days 60
+
+✔ Scan complete. Found 2 inactive projects.
+
+📦 Eligible for cleanup:
+   234.5 MB  ~/Projects/old-blog
+   412.0 MB  ~/Projects/archive/defunct-app
+   ────────
+   646.5 MB  TOTAL
+
+ℹ️ Mode: Trash (safe)
+
+? Proceed? Yes
+✔ Cleanup complete!
 ```
 
------
+---
 
-## ⚙️ Configuration (CLI Options)
+## 📖 CLI Commands
 
-Flags always override your saved config.
+| Command         | Description                        |
+| --------------- | ---------------------------------- |
+| `sweepr`        | Scan all supported project types   |
+| `sweepr node`   | Clean Node.js projects only        |
+| `sweepr python` | Clean Python virtual environments  |
+| `sweepr config` | Interactive configuration wizard   |
+| `sweepr stats`  | Show lifetime reclaimed disk space |
+| `sweepr help`   | Display full CLI help              |
 
-| Flag | Alias | Description | Default |
-| :--- | :--- | :--- | :--- |
-| **`--days <number>`** | `-d` | The number of days of inactivity to check for. | `30` (or as set by `config`) |
-| **`--path <directory>`**| `-p` | The root directory to start scanning from. | Current directory (or as set by `config`) |
-| **`--trash`** | | Move deleted folders to the system trash (safer). | `true` (or as set by `config`) |
-| **`--no-trash`** | | **Permanently** delete folders (dangerous). | |
-| **`--dry-run`** | | List projects to be cleaned without deleting. | `false` (or as set by `config`) |
-| **`--no-dry-run`** | | Force deletion if config defaults to dry-run. | |
-| **`--yes`** | `-y` | Skip all confirmation prompts. | `false` |
-| **`--interactive`** | `-i` | Show a list and ask for selection. | `false` |
+---
 
------
+## ⚙️ CLI Options
 
-## 💡 How "Activity" is Measured
+| Flag            | Alias | Description                        |
+| --------------- | ----- | ---------------------------------- |
+| `--days <n>`    | `-d`  | Inactivity threshold (default: 30) |
+| `--path <dir>`  | `-p`  | Root directory to scan             |
+| `--interactive` | `-i`  | Select projects manually           |
+| `--dry-run`     |       | Preview without deleting           |
+| `--trash`       |       | Move to system trash (default)     |
+| `--no-trash`    |       | Permanently delete (dangerous)     |
+| `--yes`         | `-y`  | Skip confirmation prompts          |
 
-This tool is smart about what it considers "activity."
+---
 
-  - It recursively scans every file and folder in your project **except** for directories like `.git`, `dist`, `build`, `node_modules`, `venv`, `__pycache__`, and other dependency/cache folders.
-  - It **only** checks the "last modified" time of files with "code" extensions (e.g., `.js`, `.mjs`, `.ts`, `.tsx`, `.json`, `.css`, `.html`, `.py`, etc.).
-  - This means changing a `README.md`, `.env`, or `.gitignore` file **will not** mark your project as "active." This is intentional, as you haven't changed the *code*.
+## ⚙️ Configuration
 
-You can customize the list of extensions and ignored directories by editing `src/constants.js`.
+`sweepr` stores configuration in:
 
------
+```bash
+~/.sweeprrc
+```
 
-## 📜 License
+Example:
 
-This project is licensed under the MIT License - see the [LICENSE](https://www.google.com/search?q=LICENSE) file for details.
+```json
+{
+  "days": 90,
+  "path": "/Users/name/Projects",
+  "trash": true,
+  "dryRun": false
+}
+```
+
+Flags always override config values.
+
+---
+
+## 💡 How Activity Is Determined
+
+`sweepr`:
+
+* Recursively scans project directories
+* Ignores dependency and build folders (`node_modules`, `venv`, `dist`, `.git`, etc.)
+* Considers only **real code files**
+* Ignores changes to `README.md`, `.env`, or config-only files
+
+This prevents false positives and accidental deletion of active projects.
+
+---
+
+## 🛠️ Tech Stack
+
+* **Node.js**
+* **Commander.js** — CLI framework
+* **Inquirer.js** — Interactive prompts
+* **Trash** — Cross-platform soft delete
+* **Chalk & Ora** — Terminal UI
+* **Vitest** — Safety-critical tests
+
+---
+
+## 🧪 Testing
+
+```bash
+npm test
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome.
+
+1. Fork the repo
+2. Create a feature branch
+3. Add tests for safety-critical logic
+4. Submit a pull request
+
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for details.
+
+---
+
+## 📄 License
+
+MIT License — see the [LICENSE](LICENSE) file.
+
+---
+
+## 👤 Author
+
+**Siddhesh Todi**
+GitHub: [https://github.com/siddhesht795](https://github.com/siddhesht795)
+npm: [https://www.npmjs.com/package/sweepr](https://www.npmjs.com/package/sweepr)
+
+---
+
+## 🔗 Links
+
+* **npm Package:** [https://www.npmjs.com/package/sweepr](https://www.npmjs.com/package/sweepr)
+* **GitHub Repository:** [https://github.com/siddhesht795/sweepr](https://github.com/siddhesht795/sweepr)
+* **Documentation:** [https://github.com/siddhesht795/sweepr/tree/main/docs](https://github.com/siddhesht795/sweepr/tree/main/docs)
+* **Issue Tracker:** [https://github.com/siddhesht795/sweepr/issues](https://github.com/siddhesht795/sweepr/issues)
+
+---
+
+Made with care for developers who value clean systems and safe tooling.
