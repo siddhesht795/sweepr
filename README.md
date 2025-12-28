@@ -42,7 +42,7 @@ Unlike manual deletion or naive cleanup scripts, `sweepr` determines *true proje
 - **[Safety & Design](docs/SAFETY_MODEL.md)** — How sweepr avoids deleting active projects
 - **[Contributing](CONTRIBUTING.md)** — How to contribute
 
-## 📦 Installation
+## Installation
 
 ### Global Installation (Recommended)
 
@@ -56,7 +56,7 @@ Verify installation:
 sweepr --help
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Configure defaults (recommended)
 
@@ -89,7 +89,7 @@ sweepr -i
 
 ---
 
-## 🧭 Example Output
+## Example Output
 
 ```bash
 $ sweepr --days 60
@@ -110,7 +110,7 @@ $ sweepr --days 60
 
 ---
 
-## 📖 CLI Commands
+## CLI Commands
 
 | Command         | Description                        |
 | --------------- | ---------------------------------- |
@@ -123,7 +123,7 @@ $ sweepr --days 60
 
 ---
 
-## ⚙️ CLI Options
+## CLI Options
 
 | Flag            | Alias | Description                        |
 | --------------- | ----- | ---------------------------------- |
@@ -137,7 +137,7 @@ $ sweepr --days 60
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 `sweepr` stores configuration in:
 
@@ -160,7 +160,7 @@ Flags always override config values.
 
 ---
 
-## 💡 How Activity Is Determined
+## How Activity Is Determined
 
 `sweepr`:
 
@@ -173,7 +173,7 @@ This prevents false positives and accidental deletion of active projects.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 * **Node.js**
 * **Commander.js** — CLI framework
@@ -184,7 +184,7 @@ This prevents false positives and accidental deletion of active projects.
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ```bash
 npm test
@@ -192,7 +192,7 @@ npm test
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome.
 
@@ -205,13 +205,13 @@ See **[CONTRIBUTING.md](CONTRIBUTING.md)** for details.
 
 ---
 
-## 📄 License
+## License
 
 MIT License — see the [LICENSE](LICENSE) file.
 
 ---
 
-## 👤 Author
+## Author
 
 **Siddhesh Todi**
 GitHub: [https://github.com/siddhesht795](https://github.com/siddhesht795)
@@ -219,7 +219,7 @@ npm: [https://www.npmjs.com/package/sweepr](https://www.npmjs.com/package/sweepr
 
 ---
 
-## 🔗 Links
+## Links
 
 * **npm Package:** [https://www.npmjs.com/package/sweepr](https://www.npmjs.com/package/sweepr)
 * **GitHub Repository:** [https://github.com/siddhesht795/sweepr](https://github.com/siddhesht795/sweepr)
