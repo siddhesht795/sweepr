@@ -1,6 +1,6 @@
 {
   "name": "sweepr",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "Sweep away digital clutter: A smart cleaner for Node.js and Python projects.",
   "main": "index.js",
   "type": "module",
