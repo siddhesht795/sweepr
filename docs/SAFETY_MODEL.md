@@ -65,7 +65,7 @@ This prevents false positives caused by installs, builds, or documentation edits
 
 ## Python Virtual Environment Safety
 
-After selection and confirmation, immediately before removing a Python virtual environment, `sweepr` exports its installed dependencies. If export fails, that environment is skipped.
+After selection and confirmation, immediately before removing a Python virtual environment, `sweepr` exports its installed dependencies. If export fails, that environment is kept by default. An interactive terminal offers an additional, default-No confirmation to clean it without a saved package list.
 
 Process:
 
@@ -161,4 +161,12 @@ Always review output carefully before confirming destructive actions.
 
 Cleanup reporting measures dependency data processed, not a measured change in free disk space. Trash mode reports **Moved to trash**; empty the Trash / Recycle Bin to free the storage. Permanent mode reports **Deleted**. Lifetime statistics show **dependency data cleaned**, including historical totals.
 
-Python dry runs do not execute pip or write requirements files. Their size estimates are provisional: actual cleanup skips environments whose dependency export fails. Cancelled and unselected environments do not receive a requirements export. Explicit `--dry-run` also skips the first-run configuration wizard.
+Python dry runs do not execute pip or write requirements files. Their size estimates are provisional: actual cleanup keeps environments whose dependency export fails unless you explicitly approve the additional confirmation in an interactive terminal. Cancelled and unselected environments do not receive a requirements export. Explicit `--dry-run` also skips the first-run configuration wizard.
+
+## Cleaning a Python environment when export fails
+
+If Sweepr cannot save an environment's installed package list, an interactive terminal offers **Clean anyway** through an extra confirmation, defaulting to **No**. The prompt identifies the exact environment and whether it will be moved to Trash / Recycle Bin or permanently deleted. Project source files remain.
+
+Choose Yes only if you no longer need the environment or already have enough dependency information to rebuild it. This choice applies only to that environment. The summary identifies successful cleanup without a saved package list.
+
+`--yes` does not bypass this additional confirmation. Noninteractive runs continue to skip failed exports. Dry runs and cancelled/unselected environments do not attempt export, show this confirmation, or delete files. Declining the additional confirmation keeps that environment. Successful cleanup without a saved package list is identified in the summary.

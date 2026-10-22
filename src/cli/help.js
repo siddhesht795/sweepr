@@ -39,7 +39,7 @@ export function displayHelp() {
   logItem('--no-dry-run', 'Force actual deletion (overrides config).');
   logItem('--trash', 'Move to system trash instead of delete (safer).');
   logItem('--no-trash', 'Permanently delete files (faster, dangerous).');
-  logItem('-y, --yes', 'Skip all confirmation prompts (for scripts).');
+  logItem('-y, --yes', 'Skip normal prompts; failed Python exports still need confirmation.');
 
   logHeader('EXAMPLES');
   console.log(`  ${chalk.dim('# Preview what would be deleted in the current folder')}`);

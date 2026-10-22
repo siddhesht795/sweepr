@@ -7,7 +7,7 @@ import { createFileSystem } from '../utils/io.js';
 import { formatBytes, getDirectorySize } from '../utils/helpers.js';
 import { updateLifetimeSavings } from '../utils/config.js';
 
-export async function performCleanup(targets, options, totalSize, beforeCleanup, io = createFileSystem()) {
+export async function performCleanup(targets, options, totalSize, beforeCleanup, io = createFileSystem(), onPreparationFailure) {
   const totalSizeStr = totalSize === null ? null : formatBytes(totalSize);
 
   if (options.dryRun) {
@@ -24,6 +24,8 @@ export async function performCleanup(targets, options, totalSize, beforeCleanup,
   let successCount = 0;
   let failCount = 0;
   let skippedCount = 0;
+  let cleanedWithoutReceipt = 0;
+  let cancelled = false;
   let prepareMs = 0;
   let sizeMs = 0;
   let deleteMs = 0;
@@ -115,8 +117,19 @@ export async function performCleanup(targets, options, totalSize, beforeCleanup,
     try {
       // Prepare only confirmed selections, immediately before deleting each target.
       const prepareStart = performance.now();
-      const ready = !beforeCleanup || await beforeCleanup(target);
+      let ready = !beforeCleanup || await beforeCleanup(target);
+      let withoutReceipt = false;
       prepareMs += performance.now() - prepareStart;
+      if (!ready && onPreparationFailure) {
+        // Do not let a running spinner interfere with the additional confirmation.
+        delSpinner.stop();
+        try {
+          withoutReceipt = (await onPreparationFailure(target)) === true;
+          ready = withoutReceipt;
+        } finally {
+          delSpinner.start();
+        }
+      }
       if (!ready) {
         skippedCount++;
         delSpinner.clear();
@@ -140,8 +153,13 @@ export async function performCleanup(targets, options, totalSize, beforeCleanup,
         deleteMs += performance.now() - deleteStart;
       }
       successCount++;
+      if (withoutReceipt) cleanedWithoutReceipt++;
       totalBytesDeleted += target.size;
     } catch (err) {
+      if (err.name === 'ExitPromptError' || err.name === 'AbortPromptError') {
+        cancelled = true;
+        break;
+      }
       delSpinner.clear();
       console.error(chalk.red(`\n❌ Failed to delete ${target.path}: ${err.message}`));
       delSpinner.render();
@@ -149,7 +167,9 @@ export async function performCleanup(targets, options, totalSize, beforeCleanup,
     }
   }
 
-  if (failCount === 0 && skippedCount === 0) {
+  if (cancelled) {
+    delSpinner.warn(chalk.yellow('Cleanup cancelled. Remaining environments were kept.'));
+  } else if (failCount === 0 && skippedCount === 0) {
     delSpinner.succeed(chalk.green('Cleaned successfully!'));
   } else {
     delSpinner.warn(chalk.yellow(`Finished, but ${failCount} failed, ${skippedCount} skipped.`));
@@ -165,7 +185,9 @@ export async function performCleanup(targets, options, totalSize, beforeCleanup,
     console.log(`✅ Cleaned:   ${successCount} projects`);
     if (failCount > 0) console.log(`❌ Failed:    ${failCount} projects`);
     console.log(`${options.trash ? 'Moved to trash' : 'Deleted'}: ${chalk.bold(formatBytes(totalBytesDeleted))}`);
+    if (cleanedWithoutReceipt > 0) console.log(chalk.yellow('Cleaned without a saved package list: ' + cleanedWithoutReceipt + ' environment(s).'));
     if (options.trash) console.log(chalk.dim('Empty your system trash / Recycle Bin to free the storage.'));
     console.log(chalk.cyan(`📈 Lifetime dependency data cleaned: ${chalk.bold(formatBytes(newLifetimeTotal))}\n`));
   }
+  return { deleteMs };
 }

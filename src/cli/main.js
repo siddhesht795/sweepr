@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 import { program, InvalidArgumentError } from 'commander';
 import chalk from 'chalk';
-import { createRun, discoverRun } from '../core/workflow.js';
+import { createRun, discoverRun, displayRunTimings } from '../core/workflow.js';
 import { loadGlobalConfig, doesConfigExist, mergeOptions } from '../utils/config.js';
 import { runConfigWizard } from './wizard.js';
 import { runNodeCleanup } from '../lang/node.js';
@@ -36,7 +36,7 @@ export async function main() {
     })
     .option('--dry-run', 'Simulate deletion without actually deleting')
     .option('--no-dry-run', 'Disable dry-run mode')
-    .option('-y, --yes', 'Skip confirmation prompts (DANGEROUS)')
+    .option('-y, --yes', 'Skip normal cleanup prompts (failed Python exports still require confirmation)')
     .option('--no-yes', 'Do NOT skip confirmation prompts')
     .option('--trash', 'Move to system trash (safer)')
     .option('--no-trash', 'Permanently delete files')
@@ -66,13 +66,19 @@ export async function main() {
   program.command('node')
     .description('Clean up inactive Node.js projects')
     .action(async () => {
-      await runNodeCleanup(mergeOptions(program.opts(), loadedConfig));
+      const opts = mergeOptions(program.opts(), loadedConfig);
+      const run = createRun(opts);
+      await runNodeCleanup(opts, run);
+      displayRunTimings(run, opts);
     });
 
   program.command('python')
     .description('Clean up inactive Python projects')
     .action(async () => {
-      await runPythonCleanup(mergeOptions(program.opts(), loadedConfig));
+      const opts = mergeOptions(program.opts(), loadedConfig);
+      const run = createRun(opts);
+      await runPythonCleanup(opts, run);
+      displayRunTimings(run, opts);
     });
 
   program.command('all', { isDefault: true })
@@ -94,10 +100,11 @@ export async function main() {
       const opts = mergeOptions(program.opts(), loadedConfig);
       const run = createRun(opts);
       const discovery = await discoverRun(run, ['node', 'python']);
-      if (opts.timings) console.log('Timing: shared scan ' + (discovery.elapsedMs / 1000).toFixed(3) + 's');
+
       await runNodeCleanup(opts, run, discovery.targets);
       await runPythonCleanup(opts, run, discovery.targets);
       console.log(chalk.bold('\n✨ Sweep complete!'));
+      displayRunTimings(run, opts);
     });
 
   // to override default help behavior to show our custom screen

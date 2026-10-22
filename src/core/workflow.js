@@ -10,6 +10,7 @@ export function createRun(options) {
   const thresholdDate = new Date();
   thresholdDate.setDate(thresholdDate.getDate() - days);
   return {
+    deletionElapsedMs: 0,
     days, thresholdDate, scanPath: path.resolve(options.path ?? process.cwd()),
     context: createScanContext({ thresholdDate, concurrency: options.concurrency ?? 16 }),
   };
@@ -20,12 +21,20 @@ export async function discoverRun(run, languages) {
   const start = performance.now();
   try {
     const targets = await discoverTargets(run.scanPath, { languages, context: run.context });
+    const elapsedMs = performance.now() - start;
+    run.scanElapsedMs = elapsedMs;
     spinner.succeed(`Scan complete. Found ${targets.length} dependency folders.`);
-    return { targets, elapsedMs: performance.now() - start };
+    return { targets, elapsedMs };
   } catch (error) {
     spinner.fail('Scan failed.');
     throw error;
   }
+}
+
+export function displayRunTimings(run, options) {
+  if (run.scanElapsedMs == null) return;
+  console.log(`\nScan time: ${(run.scanElapsedMs / 1000).toFixed(3)}s`);
+  console.log(`Deletion time: ${(run.deletionElapsedMs / 1000).toFixed(3)}s${options.dryRun ? " (dry run)" : ""}`);
 }
 
 export async function measureTargets(targets, options, context) {

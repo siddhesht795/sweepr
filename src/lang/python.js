@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import chalk from 'chalk';
+import inquirer from 'inquirer';
 import { execFile } from 'child_process';
 import util from 'util';
 import { createRun, discoverRun, measureTargets } from '../core/workflow.js';
@@ -37,6 +38,25 @@ async function generateRequirements(venvPath) {
     }
 }
 
+async function confirmCleanupWithoutReceipt(target, options) {
+  // General --yes consent does not waive the Python dependency-export safeguard.
+  // Unattended runs keep the existing skip behavior instead of waiting on a prompt.
+  if (!process.stdin.isTTY || !process.stdout.isTTY) return false;
+
+  console.log(chalk.yellow('\nCould not save a package list for: ' + target.path));
+  console.log(chalk.dim('Your project source files will remain. No new dependency receipt was saved; recreating this environment may require an existing backup.'));
+  const action = options.trash
+    ? 'Move this environment to the Recycle Bin / Trash anyway?'
+    : 'PERMANENTLY DELETE this environment without a saved package list?';
+  const { cleanWithoutReceipt } = await inquirer.prompt([{
+    type: 'confirm',
+    name: 'cleanWithoutReceipt',
+    message: action,
+    default: false,
+  }]);
+  return cleanWithoutReceipt === true;
+}
+
 export async function runPythonCleanup(options, sharedRun, discoveredTargets) {
   const run = sharedRun ?? createRun(options);
   const { days, scanPath, thresholdDate } = run;
@@ -48,7 +68,7 @@ export async function runPythonCleanup(options, sharedRun, discoveredTargets) {
   
   const discovery = discoveredTargets ? { targets: discoveredTargets } : await discoverRun(run, ['python']);
   const inactiveTargets = discovery.targets.filter(target => target.language === 'python' && target.mtime < thresholdDate);
-  if (options.timings && discovery.elapsedMs != null) console.log('Timing: scan ' + (discovery.elapsedMs / 1000).toFixed(3) + 's');
+
 
 
   if (inactiveTargets.length === 0) {
@@ -57,7 +77,7 @@ export async function runPythonCleanup(options, sharedRun, discoveredTargets) {
   }
 
   console.log(chalk.green('Found ' + inactiveTargets.length + ' inactive Python environments.'));
-  console.log(chalk.dim('Requirements will be exported after selection, immediately before cleanup. Environments whose export fails will be skipped.'));
+  console.log(chalk.dim('Requirements will be exported after selection, immediately before cleanup. If export fails, you can explicitly confirm cleanup without a package list in an interactive terminal; the default is to keep it.'));
   if (options.dryRun) console.log(chalk.dim('Dry run: requirements export is not attempted; cleanup eligibility is provisional.'));
 
   const sizeStarted = performance.now();
@@ -73,10 +93,11 @@ export async function runPythonCleanup(options, sharedRun, discoveredTargets) {
     const sizeStr = chalk.yellow((target.size === null ? 'not measured' : formatBytes(target.size)).padStart(10));
     const dateStr = chalk.dim(target.mtime.toLocaleDateString());
     console.log(`   ${sizeStr}  ${chalk.white(target.parent)} ${chalk.dim('(Last active: ' + dateStr + ')')}`);
-    console.log(chalk.dim(`               ↳ Requires successful requirements.sweepr.txt export before cleanup`));
+    console.log(chalk.dim(`               ↳ Package list export required unless you explicitly confirm cleanup without it`));
   });
   console.log(chalk.dim('   ' + '─'.repeat(50)));
   console.log(`   ${chalk.green.bold((totalSize === null ? 'not measured' : formatBytes(totalSize)).padStart(10))}  ${chalk.bold('TOTAL DEPENDENCY DATA')}\n`);
   
-  await performCleanup(targetsWithSizes, options, totalSize, target => generateRequirements(target.path), run.context.io);
+  const cleanup = await performCleanup(targetsWithSizes, options, totalSize, target => generateRequirements(target.path), run.context.io, target => confirmCleanupWithoutReceipt(target, options));
+  run.deletionElapsedMs += cleanup?.deleteMs ?? 0;
 }

@@ -15,7 +15,7 @@ export async function runNodeCleanup(options, sharedRun, discoveredTargets) {
   
   const discovery = discoveredTargets ? { targets: discoveredTargets } : await discoverRun(run, ['node']);
   const targets = discovery.targets.filter(target => target.language === 'node' && target.mtime < thresholdDate);
-  if (options.timings && discovery.elapsedMs != null) console.log('Timing: scan ' + (discovery.elapsedMs / 1000).toFixed(3) + 's');
+
 
 
   if (targets.length === 0) {
@@ -42,5 +42,6 @@ export async function runNodeCleanup(options, sharedRun, discoveredTargets) {
   console.log(chalk.dim('   ' + '─'.repeat(50)));
   console.log(`   ${chalk.green.bold((totalSize === null ? 'not measured' : formatBytes(totalSize)).padStart(10))}  ${chalk.bold('TOTAL DEPENDENCY DATA')}\n`);
 
-  await performCleanup(targetsWithSizes, options, totalSize, undefined, run.context.io);
+  const cleanup = await performCleanup(targetsWithSizes, options, totalSize, undefined, run.context.io);
+  run.deletionElapsedMs += cleanup?.deleteMs ?? 0;
 }

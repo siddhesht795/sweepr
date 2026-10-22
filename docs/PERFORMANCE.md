@@ -6,6 +6,8 @@ Activity checking stops once a recent code/configuration file proves a project i
 
 Filesystem calls share a concurrency limit (16 by default). This applies across discovery, source metadata checks, and size calculations. Larger limits are not automatically faster; benchmark the actual disk before tuning.
 
+Every successful scan shows its duration automatically, for example `Scan complete in 0.254s. Found 150 dependency folders.` This measures discovery and activity checks, excluding size calculation, prompts, dependency export, and deletion. The default Node/Python command reports one shared scan duration. Use `--timings` for additional stage details.
+
 ## Faster previews
 
 ```powershell
@@ -16,7 +18,7 @@ node bin/sweepr.js --path "D:\Siddhesh\Projects" --dry-run --skip-size --timings
 - `--concurrency <number>` sets a limit from 1 through 128. Default: 16.
 - `--timings` prints scan, preview-size, preparation, deferred-size, and deletion durations as applicable. Prompt time is excluded from cleanup-stage timings.
 
-Default behavior still includes size estimates before selection. Python dependency export still happens only for confirmed selections and must succeed before deletion. Trash remains the default, and `--dry-run` changes no project files.
+Default behavior still includes size estimates before selection. Python dependency export still happens only for confirmed selections and must succeed before deletion unless the user explicitly confirms cleanup without a package list in an interactive terminal. Trash remains the default, and `--dry-run` changes no project files.
 
 ## Boundaries
 
