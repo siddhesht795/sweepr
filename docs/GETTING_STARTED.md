@@ -1,3 +1,7 @@
+## Node.js requirements
+
+Use Node.js **20.19+ within Node 20**, **22.12+ within Node 22**, or **24+**. Node 18 is unsupported by the current dependencies. CI tests the latest available patch releases of Node 20, 22, and 24. The `engines.node` field in `package.json` declares the supported runtime range.
+
 ## Installation
 
 ### Global install (recommended)
@@ -123,8 +127,6 @@ This allows you to:
 
 * Read the **CLI Reference** for advanced flags
 * Review the **Safety Model** to understand how sweepr avoids deleting active projects
-
-
 
 Cleanup reporting measures dependency data processed, not a measured change in free disk space. Trash mode reports **Moved to trash**; empty the Trash / Recycle Bin to free the storage. Permanent mode reports **Deleted**. Lifetime statistics show **dependency data cleaned**, including historical totals.
 

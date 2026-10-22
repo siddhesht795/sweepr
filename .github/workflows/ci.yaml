@@ -14,8 +14,8 @@ jobs:
 
     strategy:
       matrix:
-        # tests against multiple Node versions
-        node-version: [18.x, 20.x, 22.x]
+        # Match package.json engines; Node 18 cannot load current dependencies.
+        node-version: [20.x, 22.x, 24.x]
 
     steps:
     #1. check out the code
