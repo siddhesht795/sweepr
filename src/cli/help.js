@@ -23,16 +23,19 @@ export function displayHelp() {
   logItem('node', 'Clean inactive Node.js projects (node_modules).');
   logItem('python', 'Clean inactive Python projects (venv).');
   logItem('config', 'Run the interactive configuration wizard.');
-  logItem('stats', 'View total disk space reclaimed lifetime.');
+  logItem('stats', 'View lifetime dependency data cleaned.');
   logItem('help', 'Show this help message.');
 
   logHeader('OPTIONS (Flags)');
   logItem('-d, --days <number>', 'Inactivity threshold in days (default: 30).');
   logItem('-p, --path <dir>', 'Root directory to scan (default: current).');
+  logItem('--skip-size', 'Skip preview sizes; measure confirmed selections only.');
+  logItem('--concurrency <number>', 'Maximum filesystem calls in flight (default: 16).');
+  logItem('--timings', 'Show time spent in each cleanup stage.');
   logItem('-i, --interactive', 'Review and select specific folders to delete.');
   
   logHeader('SAFETY & MODES');
-  logItem('--dry-run', 'Simulate deletion (no files touched).');
+  logItem('--dry-run', 'Preview cleanup without changing project files.');
   logItem('--no-dry-run', 'Force actual deletion (overrides config).');
   logItem('--trash', 'Move to system trash instead of delete (safer).');
   logItem('--no-trash', 'Permanently delete files (faster, dangerous).');
@@ -45,7 +48,7 @@ export function displayHelp() {
   console.log(`  ${chalk.dim('\n  # Interactively clean Node projects older than 90 days')}`);
   console.log(`  $ sweepr node --days 90 -i`);
 
-  console.log(`  ${chalk.dim('\n  # Check how much space you have saved total')}`);
+  console.log(`  ${chalk.dim('\n  # Check total dependency data cleaned')}`);
   console.log(`  $ sweepr stats`);
 
   console.log('');

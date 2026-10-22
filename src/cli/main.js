@@ -1,6 +1,7 @@
-import { program } from 'commander';
+import { createRequire } from 'node:module';
+import { program, InvalidArgumentError } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
+import { createRun, discoverRun } from '../core/workflow.js';
 import { loadGlobalConfig, doesConfigExist, mergeOptions } from '../utils/config.js';
 import { runConfigWizard } from './wizard.js';
 import { runNodeCleanup } from '../lang/node.js';
@@ -8,11 +9,13 @@ import { runPythonCleanup } from '../lang/python.js';
 import { formatBytes } from '../utils/helpers.js';
 import { displayHelp } from './help.js'; // --- NEW IMPORT ---
 
+const { version } = createRequire(import.meta.url)('../../package.json');
+
 export async function main() {
   let isFirstRun = false;
   try { isFirstRun = !(await doesConfigExist()); } catch (err) { }
 
-  if (isFirstRun && !process.argv.includes('--help') && !process.argv.includes('-h') && process.argv[2] !== 'config') {
+  if (isFirstRun && !process.argv.includes('--help') && !process.argv.includes('-h') && !process.argv.includes('--version') && !process.argv.includes('-V') && !process.argv.includes('--dry-run') && process.argv[2] !== 'help' && process.argv[2] !== 'config') {
     await runConfigWizard();
     console.log(chalk.dim('----------------------------------------\n'));
   }
@@ -20,10 +23,17 @@ export async function main() {
   const loadedConfig = await loadGlobalConfig();
 
   program
-    .version('1.9.0')
+    .version(version)
     .description('A smart CLI tool to clean up inactive dev dependencies.') 
     .option('-d, --days <number>', `Inactivity threshold in days [default: ${loadedConfig.days || 30}]`)
     .option('-p, --path <directory>', `Root path to scan [default: current dir]`)
+    .option('--skip-size', 'Skip preview sizes; measure only confirmed selections')
+    .option('--timings', 'Show time spent scanning, sizing, preparing, and deleting')
+    .option('--concurrency <number>', 'Maximum concurrent filesystem calls (1-128)', value => {
+      const parsed = Number(value);
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 128) throw new InvalidArgumentError('Use an integer between 1 and 128.');
+      return parsed;
+    })
     .option('--dry-run', 'Simulate deletion without actually deleting')
     .option('--no-dry-run', 'Disable dry-run mode')
     .option('-y, --yes', 'Skip confirmation prompts (DANGEROUS)')
@@ -44,13 +54,13 @@ export async function main() {
     .action(runConfigWizard);
 
   program.command('stats')
-    .description('Show lifetime space savings')
+    .description('Show lifetime dependency data cleaned')
     .action(async () => {
       const config = await loadGlobalConfig();
-      const total = config.totalReclaimedBytes || 0;
+      const total = config.totalCleanedBytes ?? config.totalReclaimedBytes ?? 0;
       console.log('');
       console.log(chalk.bgCyan.black.bold(' SWEEPR STATS '));
-      console.log(`📈 Lifetime space reclaimed: ${chalk.green.bold(formatBytes(total))}\n`);
+      console.log(`📈 Lifetime dependency data cleaned: ${chalk.green.bold(formatBytes(total))}\n`);
     });
 
   program.command('node')
@@ -82,8 +92,11 @@ export async function main() {
 
       console.log(chalk.bold('🧹 Starting sweepr full cleanup...'));
       const opts = mergeOptions(program.opts(), loadedConfig);
-      await runNodeCleanup(opts);
-      await runPythonCleanup(opts);
+      const run = createRun(opts);
+      const discovery = await discoverRun(run, ['node', 'python']);
+      if (opts.timings) console.log('Timing: shared scan ' + (discovery.elapsedMs / 1000).toFixed(3) + 's');
+      await runNodeCleanup(opts, run, discovery.targets);
+      await runPythonCleanup(opts, run, discovery.targets);
       console.log(chalk.bold('\n✨ Sweep complete!'));
     });
 

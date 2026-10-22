@@ -17,15 +17,16 @@ export async function saveGlobalConfig(newConfig) {
   await fs.writeFile(GLOBAL_CONFIG_PATH, configString);
 }
 
-// function to track stats(lifetime memory reclaimed)
-export async function updateLifetimeSavings(bytesReclaimed) {
+// Preserve legacy totals when migrating to the accurate cleaned-data metric.
+export async function updateLifetimeSavings(bytesCleaned) {
   const config = await loadGlobalConfig();
-  const currentTotal = config.totalReclaimedBytes || 0;
+  const currentTotal = config.totalCleanedBytes ?? config.totalReclaimedBytes ?? 0;
   
-  config.totalReclaimedBytes = currentTotal + bytesReclaimed;
+  config.totalCleanedBytes = currentTotal + bytesCleaned;
+  delete config.totalReclaimedBytes;
   
   await saveGlobalConfig(config);
-  return config.totalReclaimedBytes;
+  return config.totalCleanedBytes;
 }
 
 //function to check if a config file already exists or not

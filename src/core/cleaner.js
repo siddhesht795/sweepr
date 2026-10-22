@@ -3,14 +3,15 @@ import trash from 'trash';
 import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
-import { formatBytes } from '../utils/helpers.js';
+import { createFileSystem } from '../utils/io.js';
+import { formatBytes, getDirectorySize } from '../utils/helpers.js';
 import { updateLifetimeSavings } from '../utils/config.js';
 
-export async function performCleanup(targets, options, totalSize) {
-  const totalSizeStr = formatBytes(totalSize);
+export async function performCleanup(targets, options, totalSize, beforeCleanup, io = createFileSystem()) {
+  const totalSizeStr = totalSize === null ? null : formatBytes(totalSize);
 
   if (options.dryRun) {
-    ora().info(chalk.blueBright('DRY RUN MODE: No files were deleted.\n'));
+    ora().info(chalk.blueBright('DRY RUN MODE: No project files were changed.\n'));
     return;
   }
 
@@ -22,6 +23,10 @@ export async function performCleanup(targets, options, totalSize) {
 
   let successCount = 0;
   let failCount = 0;
+  let skippedCount = 0;
+  let prepareMs = 0;
+  let sizeMs = 0;
+  let deleteMs = 0;
   let totalBytesDeleted = 0;
   let targetsToClean = [];
 
@@ -32,7 +37,7 @@ export async function performCleanup(targets, options, totalSize) {
     //1. print the numbered/indexed list
     targets.forEach((target, index) => {
       const num = chalk.cyanBright(`[${index + 1}]`);
-      const sz = chalk.yellow(formatBytes(target.size));
+      const sz = chalk.yellow(target.size == null ? 'size not measured' : formatBytes(target.size));
       // Show relative path for brevity if possible, otherwise full path
       console.log(`${num} ${chalk.white(target.path)} (${sz})`);
     });
@@ -88,7 +93,7 @@ export async function performCleanup(targets, options, totalSize) {
         { 
           type: 'confirm', 
           name: 'shouldDelete', 
-          message: chalk.bold(`Ready to clean ${targets.length} projects (${totalSizeStr})?`), 
+          message: chalk.bold(`Ready to clean ${targets.length} projects ${totalSizeStr === null ? '' : '(' + totalSizeStr + ')'}?`), 
           default: false 
         },
       ]);
@@ -108,12 +113,32 @@ export async function performCleanup(targets, options, totalSize) {
   
   for (const target of targetsToClean) {
     try {
-      if (options.trash) {
-        await trash(target.path);
-      } else {
-        await fs.rm(target.path, { recursive: true, force: true });
+      // Prepare only confirmed selections, immediately before deleting each target.
+      const prepareStart = performance.now();
+      const ready = !beforeCleanup || await beforeCleanup(target);
+      prepareMs += performance.now() - prepareStart;
+      if (!ready) {
+        skippedCount++;
+        delSpinner.clear();
+        console.log(chalk.yellow('Skipped ' + target.path + ': could not generate requirements.sweepr.txt.'));
+        delSpinner.render();
+        continue;
       }
-      
+      if (target.size == null) {
+        const sizeStart = performance.now();
+        target.size = await getDirectorySize(target.path, io);
+        sizeMs += performance.now() - sizeStart;
+      }
+      const deleteStart = performance.now();
+      try {
+        if (options.trash) {
+          await trash(target.path);
+        } else {
+          await fs.rm(target.path, { recursive: true, force: true });
+        }
+      } finally {
+        deleteMs += performance.now() - deleteStart;
+      }
       successCount++;
       totalBytesDeleted += target.size;
     } catch (err) {
@@ -124,11 +149,13 @@ export async function performCleanup(targets, options, totalSize) {
     }
   }
 
-  if (failCount === 0) {
+  if (failCount === 0 && skippedCount === 0) {
     delSpinner.succeed(chalk.green('Cleaned successfully!'));
   } else {
-    delSpinner.warn(chalk.yellow(`Finished, but ${failCount} projects failed.`));
+    delSpinner.warn(chalk.yellow(`Finished, but ${failCount} failed, ${skippedCount} skipped.`));
   }
+
+  if (options.timings) console.log('Timing: preparation ' + (prepareMs / 1000).toFixed(3) + 's; selected sizes ' + (sizeMs / 1000).toFixed(3) + 's; deletion ' + (deleteMs / 1000).toFixed(3) + 's');
 
   if (successCount > 0) {
     //update lifetime stats
@@ -137,7 +164,8 @@ export async function performCleanup(targets, options, totalSize) {
     console.log('\n' + chalk.bgGreen.black.bold(' SUMMARY '));
     console.log(`✅ Cleaned:   ${successCount} projects`);
     if (failCount > 0) console.log(`❌ Failed:    ${failCount} projects`);
-    console.log(`🎉 Reclaimed: ${chalk.bold(formatBytes(totalBytesDeleted))} of disk space!`);
-    console.log(chalk.cyan(`📈 Lifetime reclaimed: ${chalk.bold(formatBytes(newLifetimeTotal))}\n`));
+    console.log(`${options.trash ? 'Moved to trash' : 'Deleted'}: ${chalk.bold(formatBytes(totalBytesDeleted))}`);
+    if (options.trash) console.log(chalk.dim('Empty your system trash / Recycle Bin to free the storage.'));
+    console.log(chalk.cyan(`📈 Lifetime dependency data cleaned: ${chalk.bold(formatBytes(newLifetimeTotal))}\n`));
   }
 }

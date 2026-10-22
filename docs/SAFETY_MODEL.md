@@ -65,7 +65,7 @@ This prevents false positives caused by installs, builds, or documentation edits
 
 ## Python Virtual Environment Safety
 
-Before removing a Python virtual environment, `sweepr` ensures it can be recreated.
+After selection and confirmation, immediately before removing a Python virtual environment, `sweepr` exports its installed dependencies. If export fails, that environment is skipped.
 
 Process:
 
@@ -79,7 +79,7 @@ Process:
 
 3. Writes the file to the project root
 
-This guarantees reproducibility even after cleanup.
+This preserves a dependency list for rebuilding the environment; it does not capture the Python installation or external system dependencies.
 
 ---
 
@@ -158,3 +158,7 @@ However, **final responsibility always lies with the user**, particularly when u
 * `--no-trash`
 
 Always review output carefully before confirming destructive actions.
+
+Cleanup reporting measures dependency data processed, not a measured change in free disk space. Trash mode reports **Moved to trash**; empty the Trash / Recycle Bin to free the storage. Permanent mode reports **Deleted**. Lifetime statistics show **dependency data cleaned**, including historical totals.
+
+Python dry runs do not execute pip or write requirements files. Their size estimates are provisional: actual cleanup skips environments whose dependency export fails. Cancelled and unselected environments do not receive a requirements export. Explicit `--dry-run` also skips the first-run configuration wizard.

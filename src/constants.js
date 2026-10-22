@@ -3,11 +3,18 @@ import os from 'os';
 
 export const CODE_EXTENSIONS = new Set([
   '.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx',
-  '.json', 'package.json', 'package-lock.json',
+  '.json',
   '.html', '.htm', '.css', '.scss', '.sass', '.less',
   '.py', '.java', '.go', '.cs', '.rs', '.php', '.rb',
   '.sh', '.bash',
   '.xml', '.yml', '.yaml'
+]);
+
+// Generated dependency manifests do not indicate source activity.
+export const ACTIVITY_IGNORED_FILES = new Set([
+  'package-lock.json', 'npm-shrinkwrap.json', 'yarn.lock', 'pnpm-lock.yaml',
+  'bun.lock', 'bun.lockb', 'poetry.lock', 'Pipfile.lock', 'uv.lock',
+  'composer.lock', 'Cargo.lock', 'Gemfile.lock'
 ]);
 
 export const IGNORE_DIRS = new Set([

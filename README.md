@@ -29,7 +29,7 @@ Unlike manual deletion or naive cleanup scripts, `sweepr` determines *true proje
   Preview cleanup results without deleting anything
 
 - **Lifetime Stats**  
-  Tracks total disk space reclaimed across all runs
+  Tracks dependency data cleaned across all runs
 
 - **Cross-Platform**  
   Works on macOS, Linux, and Windows
@@ -118,7 +118,7 @@ $ sweepr --days 60
 | `sweepr node`   | Clean Node.js projects only        |
 | `sweepr python` | Clean Python virtual environments  |
 | `sweepr config` | Interactive configuration wizard   |
-| `sweepr stats`  | Show lifetime reclaimed disk space |
+| `sweepr stats`  | Show lifetime dependency data cleaned |
 | `sweepr help`   | Display full CLI help              |
 
 ---
@@ -167,7 +167,7 @@ Flags always override config values.
 * Recursively scans project directories
 * Ignores dependency and build folders (`node_modules`, `venv`, `dist`, `.git`, etc.)
 * Considers only **real code files**
-* Ignores changes to `README.md`, `.env`, or config-only files
+* Ignores changes to `README.md`, `.env`, and dependency lockfiles; code and other supported configuration files count as activity
 
 This prevents false positives and accidental deletion of active projects.
 
@@ -229,3 +229,11 @@ npm: [https://www.npmjs.com/package/sweepr](https://www.npmjs.com/package/sweepr
 ---
 
 Made with care for developers who value clean systems and safe tooling.
+
+
+Cleanup reporting measures dependency data processed, not a measured change in free disk space. Trash mode reports **Moved to trash**; empty the Trash / Recycle Bin to free the storage. Permanent mode reports **Deleted**. Lifetime statistics show **dependency data cleaned**, including historical totals.
+
+Python dry runs do not execute pip or write requirements files. Their size estimates are provisional: actual cleanup skips environments whose dependency export fails. Cancelled and unselected environments do not receive a requirements export. Explicit `--dry-run` also skips the first-run configuration wizard.
+
+
+Performance options: `--skip-size` defers sizing until after selection, `--concurrency <1-128>` controls filesystem calls (default 16), and `--timings` reports stage durations. See [Performance controls](docs/PERFORMANCE.md).

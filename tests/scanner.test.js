@@ -83,19 +83,22 @@ describe('Core: Scanner Logic', () => {
 
     fs.readdir.mockImplementation(async (dir) => {
       if (dir === '/work') return [createDirent('client-a', true)];
-      if (dir === '/work/client-a') return [createDirent('backend', true)];
-      if (dir === '/work/client-a/backend') return [createDirent('node_modules', true)];
+      if (dir === path.join('/work', 'client-a')) return [createDirent('backend', true)];
+      if (dir === path.join('/work', 'client-a', 'backend')) return [createDirent('node_modules', true)];
       return [];
     });
 
     // Mock basic stats
-    fs.stat.mockResolvedValue({ mtime: new Date() });
+    fs.stat.mockImplementation(async (p) => {
+      if (path.basename(p) === 'pyvenv.cfg') throw new Error('ENOENT');
+      return { mtime: new Date() };
+    });
 
     const isNodeTarget = (p, name) => name === 'node_modules';
     const results = await scanner.findTargets('/work', isNodeTarget);
 
     expect(results).toHaveLength(1);
-    expect(results[0].path).toContain('backend/node_modules'); // Use / or \ depending on OS, toContain handles it partially
+    expect(results[0].path).toContain(path.join('backend', 'node_modules')); // Use / or \ depending on OS, toContain handles it partially
   });
   
   it('should ignore folders in the IGNORE_DIRS list (Performance)', async () => {

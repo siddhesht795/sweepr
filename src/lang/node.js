@@ -1,53 +1,46 @@
-import path from 'path';
 import chalk from 'chalk';
-import ora from 'ora';
-import { findTargets } from '../core/scanner.js';
+import { createRun, discoverRun, measureTargets } from '../core/workflow.js';
 import { performCleanup } from '../core/cleaner.js';
-import { getDirectorySize, formatBytes } from '../utils/helpers.js';
+import { formatBytes } from '../utils/helpers.js';
 
-const isNodeModules = (dirPath, dirName) => dirName === 'node_modules';
 
-export async function runNodeCleanup(options) {
-  const days = parseInt(options.days, 10);
-  const scanPath = path.resolve(options.path);
-  const thresholdDate = new Date();
-  thresholdDate.setDate(thresholdDate.getDate() - days);
+export async function runNodeCleanup(options, sharedRun, discoveredTargets) {
+  const run = sharedRun ?? createRun(options);
+  const { days, scanPath, thresholdDate } = run;
 
   console.log('');
   console.log(chalk.bgBlue.white.bold(' NODE.JS CLEANUP '));
   console.log(chalk.dim(`Path: ${scanPath}`));
   console.log(chalk.dim(`Inactivity Threshold: ${days} days (${thresholdDate.toLocaleDateString()})\n`));
   
-  const scanSpinner = ora('Scanning for inactive projects...').start();
-  const allTargets = await findTargets(scanPath, isNodeModules);
-  const targets = allTargets.filter(target => target.mtime < thresholdDate);
+  const discovery = discoveredTargets ? { targets: discoveredTargets } : await discoverRun(run, ['node']);
+  const targets = discovery.targets.filter(target => target.language === 'node' && target.mtime < thresholdDate);
+  if (options.timings && discovery.elapsedMs != null) console.log('Timing: scan ' + (discovery.elapsedMs / 1000).toFixed(3) + 's');
+
 
   if (targets.length === 0) {
-    scanSpinner.succeed(chalk.green('Scan complete. No inactive projects found! 🎉'));
+    console.log(chalk.green('No inactive Node.js projects found.'));
     return;
   }
-  scanSpinner.succeed(chalk.green(`Scan complete. Found ${chalk.bold(targets.length)} inactive projects.`));
+  console.log(chalk.green(`Found ${targets.length} inactive Node.js projects.`));
 
-  const sizeSpinner = ora('Calculating potential space savings...').start();
-  const targetsWithSizes = await Promise.all(
-    targets.map(async (target) => {
-      const size = await getDirectorySize(target.path);
-      return { ...target, size };
-    })
-  );
-  sizeSpinner.stop();
+  const sizeStarted = performance.now();
+  const targetsWithSizes = await measureTargets(targets, options, run.context);
+  if (options.timings) console.log('Timing: preview sizes ' + ((performance.now() - sizeStarted) / 1000).toFixed(3) + 's');
+  if (options.skipSize) console.log(chalk.dim('Preview sizes skipped. Only confirmed selections will be measured before cleanup.'));
+
 
   console.log(chalk.bold('\n📦 Projects eligible for cleanup:'));
-  let totalSize = 0;
+  let totalSize = options.skipSize ? null : 0;
   targetsWithSizes.forEach(target => {
-    totalSize += target.size;
-    const sizeStr = chalk.yellow(formatBytes(target.size).padStart(10));
+    if (totalSize !== null) totalSize += target.size;
+    const sizeStr = chalk.yellow((target.size === null ? 'not measured' : formatBytes(target.size)).padStart(10));
     const dateStr = chalk.dim(target.mtime.toLocaleDateString());
     console.log(`   ${sizeStr}  ${chalk.white(target.parent)} ${chalk.dim('(Last active: ' + dateStr + ')')}`);
   });
 
   console.log(chalk.dim('   ' + '─'.repeat(50)));
-  console.log(`   ${chalk.green.bold(formatBytes(totalSize).padStart(10))}  ${chalk.bold('TOTAL RECLAIMABLE SPACE')}\n`);
+  console.log(`   ${chalk.green.bold((totalSize === null ? 'not measured' : formatBytes(totalSize)).padStart(10))}  ${chalk.bold('TOTAL DEPENDENCY DATA')}\n`);
 
-  await performCleanup(targetsWithSizes, options, totalSize);
+  await performCleanup(targetsWithSizes, options, totalSize, undefined, run.context.io);
 }

@@ -1,3 +1,6 @@
+/docs/Sweepr-Performance-Summary.md
+/docs/Sweepr-Interview-Preparation.md
+
 # Logs
 logs
 *.log
@@ -139,3 +142,32 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 .npmrc
+
+.codex
+
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Vitest and Vite caches
+.vitest/
+.vite/
+
+# Local Sweepr settings and manual test projects
+/.sweeprrc
+/test-lab/
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+
+# Operating system files
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini

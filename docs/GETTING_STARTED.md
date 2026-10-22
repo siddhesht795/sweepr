@@ -108,7 +108,7 @@ This allows you to:
 1. Configure defaults (`sweepr config`)
 2. Preview (`--dry-run`)
 3. Clean interactively (`-i`)
-4. Check reclaimed space (`sweepr stats`)
+4. Check dependency data cleaned (`sweepr stats`)
 
 ---
 
@@ -124,3 +124,8 @@ This allows you to:
 * Read the **CLI Reference** for advanced flags
 * Review the **Safety Model** to understand how sweepr avoids deleting active projects
 
+
+
+Cleanup reporting measures dependency data processed, not a measured change in free disk space. Trash mode reports **Moved to trash**; empty the Trash / Recycle Bin to free the storage. Permanent mode reports **Deleted**. Lifetime statistics show **dependency data cleaned**, including historical totals.
+
+Python dry runs do not execute pip or write requirements files. Their size estimates are provisional: actual cleanup skips environments whose dependency export fails. Cancelled and unselected environments do not receive a requirements export. Explicit `--dry-run` also skips the first-run configuration wizard.

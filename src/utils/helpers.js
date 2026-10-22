@@ -1,3 +1,4 @@
+import { createFileSystem, mapLimit } from './io.js';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -12,29 +13,18 @@ export function formatBytes(bytes, decimals = 2) {
 }
 
 //function to get the size of the directory
-export async function getDirectorySize(dir) {
+export async function getDirectorySize(dir, io = createFileSystem()) {
   let entries;
-  try {
-    entries = await fs.readdir(dir, { withFileTypes: true });
-  } catch (err) {
-    return 0;
-  }
-  const sizePromises = entries.map(async (entry) => {
+  try { entries = await io.readdir(dir); } catch { return 0; }
+  const sizes = await mapLimit(entries, io.concurrency, async entry => {
     const fullPath = path.join(dir, entry.name);
     try {
-      if (entry.isDirectory()) {
-        return await getDirectorySize(fullPath);
-      } else if (entry.isFile()) {
-        const stats = await fs.stat(fullPath);
-        return stats.size;
-      }
-    } catch (err) {
-      return 0;
-    }
+      if (entry.isDirectory()) return await getDirectorySize(fullPath, io);
+      if (entry.isFile()) return (await io.stat(fullPath)).size;
+    } catch { /* Preserve the existing best-effort size estimate. */ }
     return 0;
   });
-  const sizes = await Promise.all(sizePromises);
-  return sizes.reduce((acc, size) => acc + size, 0);
+  return sizes.reduce((total, size) => total + size, 0);
 }
 
 //function to check if a directory is a Python venv or not by looking for 'pyvenv.cfg'.

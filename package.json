@@ -15,11 +15,12 @@
     "bin",
     "src",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "index.js"
   ],
   "scripts": {
     "test": "vitest run",
-    "start": "node index.js"
+    "start": "node bin/sweepr.js"
   },
   "keywords": [
     "cli",
@@ -41,7 +42,6 @@
     "commander": "^11.1.0",
     "inquirer": "^9.2.19",
     "ora": "^9.0.0",
-    "sweepr": "^1.0.0",
     "trash": "^10.0.0"
   },
   "devDependencies": {
